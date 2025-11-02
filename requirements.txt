@@ -1,3 +1,7 @@
+pillow
+torchvision
+torch
+tqdm
 seaborn
 matplotlib
 pandas
