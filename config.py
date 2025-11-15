@@ -41,7 +41,7 @@ CONFIG = {
     # -------------------------------------------------------------------------
     # Data Settings
     # -------------------------------------------------------------------------
-    "subset_size": 25000,          # Total images to use (None = full dataset)
+    "subset_size": 10000,          # Total images to use (None = full dataset)
     "image_size": 224,            # Input image size for model
     "batch_size": 32,             # Batch size for training
     "num_workers": 4,             # DataLoader workers (reduce if memory issues)
