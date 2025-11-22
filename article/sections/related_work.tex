@@ -1,0 +1,47 @@
+\section{Related Work}
+\label{sec:related-work}
+
+\subsection{Conformal Prediction Fundamentals}
+\label{subsec:conformal-prediction-fundamentals}
+
+Conformal prediction, introduced by Vovk, Gammerman, and Shafer~\cite{vovk2005algorithmic}, provides a principled framework for uncertainty quantification with finite-sample validity guarantees.
+The fundamental property states that for a pre-specified miscoverage rate $\alpha \in (0,1)$, the constructed prediction set contains the true label with probability at least $1-\alpha$, and this guarantee holds regardless of the underlying data distribution.
+This distribution-free characteristic makes conformal prediction particularly valuable in medical applications where we cannot rely on specific parametric assumptions.
+
+The split conformal prediction approach~\cite{papadopoulos2002inductive} divides available data into a proper training set for learning the base predictor and a separate calibration set for computing nonconformity scores.
+These scores quantify how unusual or \("\)nonconforming\("\) each prediction would be relative to the calibration distribution.
+By using the empirical quantile of calibration scores, the method constructs prediction sets that provably satisfy the coverage guarantee.
+Recent theoretical advances have extended these ideas to handle more complex scenarios including conformalized quantile regression~\cite{romano2019conformalized} and uncertainty sets for neural network classifiers~\cite{angelopoulos2020uncertainty}.
+
+\subsection{Multi-Label Conformal Prediction}
+\label{subsec:multi-label-conformal-prediction}
+
+The extension of conformal prediction to multi-label classification introduces unique challenges compared to standard multi-class problems.
+The most straightforward approach treats each label independently, constructing separate prediction intervals for each class~\cite{sadinle2019least}.
+While simple and computationally efficient, this independence assumption ignores valuable structural information about label relationships and can lead to statistically inefficient or clinically implausible prediction sets.
+
+Recognizing these limitations, several researchers have proposed dependency-aware approaches.
+Conditional Conformal Prediction with Increasing Order of Conditioning (CDioC)~\cite{stutz2021learning} uses a predetermined ordering of labels to sequentially condition predictions, with the Adaptive Prediction Sets (APS) variant~\cite{romano2020classification} constructing nested prediction sets based on cumulative probability mass.
+This approach has shown promise in multi-class problems by adaptively adjusting set sizes based on instance difficulty.
+However, the extension to multi-label settings with sparse ground truth presents challenges, as we will demonstrate in our experimental results.
+
+For structured prediction problems, graphical models provide a natural framework for representing dependencies.
+The Tree-based Conformal Quantile of Inclusion Order (CQioC) approach~\cite{fontana2023prediction} employs the Chow-Liu algorithm to learn a maximum spanning tree over labels, where edges represent pairwise dependencies weighted by mutual information.
+This tree structure enables efficient inference while respecting learned dependencies.
+However, because mutual information is inherently symmetric, tree-based methods cannot capture directional relationships where the conditional probability of label B given label A differs substantially from the conditional probability of label A given label B\@.
+
+\subsection{Medical Image Classification and Uncertainty}
+\label{subsec:medical-image-classification-and-uncertainty}
+
+Multi-label classification of medical images has been extensively studied, particularly for chest radiography.
+The ChestX-ray14 dataset~\cite{wang2017chestxray14}, consisting of 112,120 frontal-view chest X-rays labeled with 14 thoracic pathology classes through automated text mining of radiology reports, has become a standard benchmark.
+Subsequent datasets like CheXpert~\cite{irvin2019chexpert} have introduced uncertainty labels to better capture the ambiguity inherent in radiological interpretation, while recent work on GLoRIA~\cite{huang2020gloria} has demonstrated the benefits of multi-modal learning that leverages both images and associated radiology reports.
+
+Despite impressive advances in classification accuracy through modern architectures like vision transformers~\cite{dosovitskiy2020image} and contrastive learning approaches~\cite{chen2020simple}, uncertainty quantification in medical imaging has received less attention.
+Bayesian approaches using Monte Carlo dropout~\cite{gal2016dropout} and deep ensembles~\cite{lakshminarayanan2017simple} can provide uncertainty estimates but lack theoretical guarantees.
+Recent work has begun exploring conformal prediction for medical applications including segmentation tasks~\cite{angelopoulos2022image} and fairness considerations~\cite{lu2022improved}, but the specific challenge of modeling asymmetric label dependencies in multi-label medical classification remains largely unaddressed.
+
+The class imbalance problem in medical datasets presents particular challenges for both classification and uncertainty quantification.
+In ChestX-ray14, pathology prevalences span nearly two orders of magnitude, from Hernia appearing in only 0.2\% of images to Infiltration present in 17.7\%.
+This severe imbalance means that standard classification metrics can be misleading, and achieving well-calibrated probability estimates for rare classes becomes extremely difficult.
+Understanding how conformal prediction methods behave under such extreme imbalance is crucial for practical deployment.

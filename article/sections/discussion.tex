@@ -1,0 +1,23 @@
+\section{Discussion}
+\label{sec:discussion}
+
+Our comprehensive evaluation of CWCS and three baseline conformal prediction methods on ChestX-ray14 reveals nuanced insights that both confirm and challenge initial expectations about label-aware uncertainty quantification under extreme class imbalance.
+While CWCS successfully models asymmetric dependencies prevalent in chest radiography diagnosis, the aggregate efficiency gains measured by average prediction set size are modest, with all methods except APS producing sets of 9.82 to 9.98 labels representing only a 1.6\% spread.
+This similarity stems from the dominant influence of conservative calibration required when base classifiers produce poorly calibrated probability estimates across severely imbalanced classes.
+
+The key insight from our experiments is that dependency modeling matters most when the base classifier provides reasonably confident and well-calibrated predictions for at least some labels, enabling the conformal method to make informed decisions about which other labels to include based on co-occurrence structure.
+In our experimental setting with a classifier achieving macro F1 of 0.32, many test instances receive moderate probabilities spread across multiple unrelated labels without clear confidence peaks.
+In such cases, all conformal methods must conservatively include many labels to guarantee coverage, and the opportunity to exploit dependency structure is limited.
+
+However, aggregate set size metrics mask important qualitative differences.
+CWCS systematically produces prediction sets that respect clinically meaningful asymmetric dependencies, such as including both Infiltration and Pneumonia when Infiltration is confidently predicted and co-occurrence evidence is strong, rather than including Infiltration alongside clinically implausible labels.
+This alignment between algorithmic reasoning based on conditional probabilities and clinical reasoning based on pathophysiological relationships offers value in interpretability and trust that quantitative efficiency metrics do not fully capture.
+Radiologists reviewing CWCS's suggestions may find them more consistent with how they naturally think about differential diagnosis, potentially improving acceptance and appropriate use of the AI system.
+
+The finding that improved base classifier performance represents the highest-leverage opportunity for reducing conformal set sizes has important implications for research priorities.
+Efforts to advance from F1 of 0.32 to 0.60 through better architectures, more training data, or multi-modal learning would likely yield greater returns than optimizing dependency modeling approaches.
+As classifiers improve and produce tighter prediction sets averaging 3 to 4 labels rather than 9 to 10, the composition and clinical coherence of those sets becomes paramount, and we expect the advantages of methods like CWCS to become more pronounced in such improved settings.
+
+Our work demonstrates that domain-specific structure can be seamlessly integrated into the conformal prediction framework while preserving distribution-free finite-sample coverage guarantees.
+The co-occurrence weighting mechanism represents one instantiation of this broader principle, and future work could explore incorporating other forms of structure such as causal relationships from medical knowledge, hierarchical taxonomies from disease ontologies, or temporal dependencies in sequential diagnosis.
+The modularity of conformal prediction—where dependency modeling enters through the nonconformity score definition without compromising theoretical validity—makes such extensions straightforward to implement and evaluate.

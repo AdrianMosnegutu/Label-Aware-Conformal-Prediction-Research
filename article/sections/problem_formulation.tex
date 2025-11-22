@@ -1,0 +1,74 @@
+\section{Background and Problem Formulation}
+\label{sec:background-and-problem-formulation}
+
+\subsection{Notation and Setup}
+\label{subsec:notation-and-setup}
+
+Let $\mathcal{X}$ denote the space of input images (chest X-rays) and $\mathcal{Y} = \{0,1\}^L$ denote the space of multi-label outputs, where $L$ represents the number of possible pathology labels.
+For the ChestX-ray14 dataset, we have $L = 14$ corresponding to pathologies including Atelectasis, Cardiomegaly, Effusion, Infiltration, Mass, Nodule, Pneumonia, Pneumothorax, Consolidation, Edema, Emphysema, Fibrosis, Pleural Thickening, and Hernia.
+Each image $X \in \mathcal{X}$ is associated with a binary label vector $Y \in \mathcal{Y}$ where $Y^{(j)} = 1$ indicates the presence of pathology $j$ and $Y^{(j)} = 0$ indicates its absence.
+
+We observe independent and identically distributed samples $\{(X_i, Y_i)\}_{i=1}^n$ drawn from an unknown joint distribution $P_{XY}$.
+Our goal is to construct a prediction set function $\mathcal{C}: \mathcal{X} \to 2^{\{1,\ldots,L\}}$ that maps each input image to a subset of labels.
+This prediction set should satisfy the coverage property that with high probability, all true labels are contained within the set.
+Formally, we require instance-level coverage defined as:
+
+\begin{equation}
+\mathbb{P}_{(X,Y) \sim P_{XY}}\left(Y^{(j)} = 1 \text{ for all } j \in \mathcal{C}(X)\right) \geq 1 - \alpha\label{eq:equation}
+\end{equation}
+
+for a pre-specified miscoverage rate $\alpha \in (0,1)$.
+In our experiments, we target $\alpha = 0.10$, corresponding to 90\% coverage.
+We also consider label-level coverage, defined separately for each label $j$ as the proportion of instances where that label, if present in the ground truth, is included in the prediction set.
+
+\subsection{Split Conformal Prediction Framework}
+\label{subsec:split-conformal-prediction-framework}
+
+The split conformal prediction protocol operates through a carefully designed sequence of steps that separate model training from calibration.
+We partition the available data into three disjoint sets serving distinct purposes.
+The training set $\mathcal{D}_{\text{train}}$ of size $n_{\text{train}}$ is used to learn the base probabilistic classifier $\hat{\pi}: \mathcal{X} \to [0,1]^L$, where $\hat{\pi}^{(j)}(X)$ provides an estimate of the conditional probability $P(Y^{(j)} = 1 \mid X)$.
+The calibration set $\mathcal{D}_{\text{cal}} = \{(X_i, Y_i)\}_{i=1}^{n_{\text{cal}}}$ is held out during training and used exclusively for computing nonconformity scores and calibration quantiles.
+Finally, the test set $\mathcal{D}_{\text{test}}$ is reserved for final evaluation and never used during either training or calibration.
+
+The core of conformal prediction lies in the construction and use of nonconformity scores.
+For each calibration sample $(X_i, Y_i)$, we compute a scalar score $s_i$ that measures how unusual or nonconforming the true label $Y_i$ is relative to the predicted probability distribution $\hat{\pi}(X_i)$.
+The specific definition of this score varies across different conformal methods and represents the key design choice that distinguishes one approach from another.
+After computing scores for all calibration samples, we determine the calibrated quantile by taking the $(1-\alpha)$-quantile of the augmented score distribution that includes an additional infinite score:
+
+\begin{equation}
+\hat{q} = \text{Quantile}\left(\{s_1, \ldots, s_{n_{\text{cal}}}, \infty\}, 1-\alpha\right)\label{eq:equation2}
+\end{equation}
+
+The inclusion of the infinite score, while seemingly technical, is crucial for achieving exact finite-sample coverage rather than asymptotic coverage.
+For a test instance $X_{\text{test}}$, we construct the prediction set by including all labels whose nonconformity scores fall below or equal to this calibrated threshold.
+
+Under the assumption that the data are exchangeable (which holds trivially when they are independent and identically distributed), this procedure provides the guarantee that the probability of the true label being contained in the prediction set is at least $1-\alpha$.
+Importantly, this guarantee holds for any base classifier $\hat{\pi}$, regardless of whether it is well-calibrated or even accurate.
+The conformal framework wraps around the base classifier to provide valid uncertainty quantification even when the underlying model is imperfect.
+
+\subsection{Modeling Label Dependencies}
+\label{subsec:modeling-label-dependencies}
+
+In multi-label medical classification, labels are rarely independent.
+We quantify these relationships through the empirical co-occurrence matrix $\mathbf{M} \in [0,1]^{L \times L}$, where each entry represents a conditional probability:
+
+\begin{equation}
+M_{jk} = \mathbb{P}(Y^{(k)} = 1 \mid Y^{(j)} = 1) = \frac{\sum_{i=1}^{n} Y_i^{(j)} \cdot Y_i^{(k)}}{\sum_{i=1}^{n} Y_i^{(j)}}\label{eq:equation3}
+\end{equation}
+
+This matrix is directional and generally asymmetric.
+The entry $M_{jk}$ answers the question: \("\)given that pathology $j$ is present, what is the probability that pathology $k$ is also present?\("\) This is distinct from $M_{kj}$, which answers the reverse question.
+The asymmetry between these two quantities provides crucial information about directional relationships.
+
+\begin{definition}[Asymmetric Dependency]
+For any pair of labels $j$ and $k$, we define the asymmetry measure as:
+\begin{equation}
+\Delta_{jk} = |M_{jk} - M_{kj}|\label{eq:equation4}
+\end{equation}
+A large value of $\Delta_{jk}$ indicates a strong directional relationship where one label is a much better predictor of the other than vice versa.
+\end{definition}
+
+These asymmetries are particularly pronounced in medical contexts where causal or sequential relationships exist between pathologies.
+For example, in our analysis of ChestX-ray14, we observe that infiltration strongly predicts pneumonia with $M_{\text{Inf},\text{Pneu}} = 0.42$, meaning that 42\% of images showing infiltration also show pneumonia.
+However, the reverse relationship is much weaker, with $M_{\text{Pneu},\text{Inf}} = 0.15$, yielding an asymmetry of $\Delta = 0.27$.
+This pattern reflects clinical reality: infiltration (abnormal density in lung tissue) is a common radiological finding in pneumonia, but infiltration has many non-infectious causes, so the presence of pneumonia provides relatively weak evidence for infiltration when considering all possible etiologies.

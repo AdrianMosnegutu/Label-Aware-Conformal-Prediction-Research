@@ -1,0 +1,214 @@
+\section{Conformal Prediction Methods}
+\label{sec:conformal-prediction-methods}
+
+\subsection{Standard Conformal Prediction with Independent Calibration}
+\label{subsec:standard-conformal-prediction-with-independent-calibration}
+
+The simplest approach to multi-label conformal prediction treats each label independently, computing separate calibration thresholds for each of the 14 pathology classes.
+For a given label $j$, the nonconformity score for a calibration sample $(X_i, Y_i)$ is defined as one minus the predicted probability for that label:
+
+\begin{equation}
+s_i^{(j)} = 1 - \hat{\pi}^{(j)}(X_i)\label{eq:equation5}
+\end{equation}
+
+This score is high when the model assigns low probability to the label, making it \("\)nonconforming\("\) or unusual.
+Crucially, we only compute and store this score for calibration samples where the label is actually present, that is, where $Y_i^{(j)} = 1$.
+This ensures that our calibration quantile represents the threshold needed to achieve coverage on positive instances of each label.
+
+For each label $j$ independently, we collect all nonconformity scores from calibration samples where that label is present, forming the set $\mathcal{S}^{(j)} = \{s_i^{(j)} : Y_i^{(j)} = 1, i = 1, \ldots, n_{\text{cal}}\}$.
+We then compute the calibrated threshold for label $j$ as:
+
+\begin{equation}
+\hat{q}^{(j)} = \text{Quantile}(\mathcal{S}^{(j)} \cup \{\infty\}, 1-\alpha)\label{eq:equation6}
+\end{equation}
+
+At test time, label $j$ is included in the prediction set if its nonconformity score is at or below its calibrated threshold, equivalently, if its predicted probability exceeds the threshold $\tau^{(j)} = 1 - \hat{q}^{(j)}$.
+The final prediction set is formed as:
+
+\begin{equation}
+\mathcal{C}(X_{\text{test}}) = \{j \in \{1,\ldots,14\} : \hat{\pi}^{(j)}(X_{\text{test}}) \geq \tau^{(j)}\}\label{eq:equation7}
+\end{equation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{../results/figures/standard_cp_thresholds}
+\caption{Calibrated probability thresholds for Standard CP across all 14 pathology labels. Most labels require very low thresholds ranging from 0.02 to 0.24, far below the conventional 0.5 decision boundary (shown as red dashed line). These low thresholds reflect the poor calibration of the base classifier under severe class imbalance. For instance, Infiltration requires a threshold of 0.24, meaning any test image where the classifier assigns Infiltration probability exceeding 24\% will have Infiltration included in its prediction set. When the classifier frequently assigns multiple labels probabilities in the 0.20 to 0.40 range simultaneously due to uncertainty, this leads to the large prediction sets observed in our experiments averaging nearly 10 labels per image.}
+\label{fig:standard_thresholds}
+\end{figure}
+
+Figure~\ref{fig:standard_thresholds} reveals that Standard CP requires very low inclusion thresholds for most pathologies, typically between 0.02 and 0.24.
+This reflects the fundamental challenge of poor probability calibration under class imbalance.
+To guarantee that 90\% of positive instances of each rare class are captured, the method must set thresholds conservatively low.
+When applied independently across all 14 labels, this results in large prediction sets even though Standard CP achieves the smallest average set size among all methods we evaluate, as it does not boost labels based on co-occurrence with already-included labels.
+
+\subsection{Adaptive Prediction Sets (APS)}\label{subsec:adaptive-prediction-sets-(aps)}
+
+The Adaptive Prediction Sets approach, originally developed for multi-class classification by Romano et al. \cite{romano2020classification}, constructs prediction sets by ordering labels according to predicted probability and including labels sequentially until a calibrated threshold is exceeded.
+We adapt this method to the multi-label setting following the approach of Stutz et al.\cite{stutz2021learning}
+
+For a calibration sample $(X_i, Y_i)$, we first sort all labels in descending order of predicted probability, obtaining a permutation $\sigma_i$ where $\sigma_i(1)$ is the most confident label, $\sigma_i(2)$ is the second most confident, and so on.
+We then compute the cumulative sum of predicted probabilities in this sorted order.
+The nonconformity score is defined as the cumulative probability mass that must be included before capturing all true labels:
+
+\begin{equation}
+s_i = \sum_{k=1}^{K_i} \hat{\pi}^{(\sigma_i(k))}(X_i)\label{eq:equation8}
+\end{equation}
+
+where $K_i$ is the smallest index such that all true labels (those where $Y_i^{(j)} = 1$) are included in the set $\{\sigma_i(1), \ldots, \sigma_i(K_i)\}$.
+Intuitively, this score measures how much probability mass we must accumulate before capturing all true positives.
+Samples where true labels receive low probabilities will have high nonconformity scores because we must include many labels to eventually capture them all.
+
+After computing scores for all calibration samples, we determine the calibrated quantile $\hat{q} = \text{Quantile}(\{s_1, \ldots, s_{n_{\text{cal}}}, \infty\}, 1-\alpha)$ as in standard conformal prediction.
+For a test instance, we construct the prediction set by including labels in decreasing probability order until the cumulative probability mass first exceeds $\hat{q}$:
+
+\begin{equation}
+\mathcal{C}(X_{\text{test}}) = \left\{\sigma(1), \ldots, \sigma(K)\right\}\label{eq:equation9}
+\end{equation}
+
+where $K = \min\left\{k : \sum_{j=1}^{k} \hat{\pi}^{(\sigma(j))}(X_{\text{test}}) > \hat{q}\right\}$.
+This greedy construction ensures that prediction sets are nested: if label $k$ is excluded, all labels with lower probabilities are also excluded.
+This nesting property is important for maintaining valid coverage under the conformal framework.
+
+In practice, we find that APS produces substantially larger prediction sets than other methods in our experiments, averaging 11.80 labels per image compared to approximately 10 for other approaches.
+This behavior stems from how APS handles sparse multi-label ground truth.
+When the majority of images have zero or one true pathology, but the classifier's probability is spread across multiple labels due to uncertainty, the cumulative mass threshold becomes conservative to ensure coverage.
+The method effectively says \("\)include labels until you have accumulated enough probability mass to be confident that true labels are captured,\("\) and under poor calibration, this mass accumulation requires including many labels.
+
+\subsection{Tree-based Conformal Prediction with Chow-Liu Trees}\label{subsec:tree-based-conformal-prediction-with-chow-liu-trees}
+
+Tree-based conformal methods model label dependencies through a learned tree structure where nodes represent labels and edges represent dependencies.
+The Chow-Liu algorithm~\cite{chow1968approximating} finds the maximum spanning tree that best approximates the joint distribution of labels using pairwise mutual information as edge weights.
+For labels $j$ and $k$, the mutual information is:
+
+\begin{equation}
+I(Y^{(j)}; Y^{(k)}) = \sum_{y_j, y_k \in \{0,1\}} P(Y^{(j)}=y_j, Y^{(k)}=y_k) \log \frac{P(Y^{(j)}=y_j, Y^{(k)}=y_k)}{P(Y^{(j)}=y_j)P(Y^{(k)}=y_k)}\label{eq:equation10}
+\end{equation}
+
+Mutual information quantifies how much knowing the value of one label reduces uncertainty about the other label.
+Importantly, mutual information is symmetric: $I(Y^{(j)}; Y^{(k)}) = I(Y^{(k)}; Y^{(j)})$, meaning the tree structure cannot represent directional dependencies.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{../results/figures/chow_liu_tree}
+\caption{Chow-Liu dependency tree learned from training data using pairwise mutual information as edge weights. Infiltration naturally emerges as a central hub node connected to eight other pathologies including Consolidation, Atelectasis, Pneumothorax, Effusion, Pneumonia, Emphysema, Nodule, and Hernia. This hub structure reflects Infiltration's high prevalence (17.7\%) and its tendency to co-occur with many other conditions. However, the tree's undirected edges represent symmetric relationships and cannot capture the directional dependencies where infiltration strongly predicts pneumonia but not vice versa. The tree constraint forces dependencies to be acyclic, preventing representation of more complex dependency structures present in the full co-occurrence matrix.}
+\label{fig:chow_liu}
+\end{figure}
+
+Figure~\ref{fig:chow_liu} shows the learned dependency tree for ChestX-ray14.
+Infiltration acts as a hub connected to many other pathologies, which makes intuitive sense given its high prevalence and its role as a general pattern that can appear in various pathological processes.
+During conformal prediction, the tree structure informs how we compute nonconformity scores by allowing conditioning on parent nodes in the tree.
+When considering whether to include a label in the prediction set, we can account for whether its parent in the tree is already included and adjust the threshold accordingly.
+
+The specific implementation of tree-based conformal prediction computes conditional probabilities along tree edges.
+For a label $k$ with parent $j$ in the tree, we use the conditional probability $P(Y^{(k)} = 1 \mid Y^{(j)})$ estimated from training data.
+The nonconformity score incorporates these conditional relationships, though the symmetric nature of the mutual information edges means that the direction of conditioning is somewhat arbitrary.
+In our experiments, Tree-based CQioC produces prediction sets averaging 9.91 labels, nearly identical to Standard CP's 9.82 labels.
+This similarity suggests that under severe class imbalance with a weak base classifier, the symmetric pairwise dependencies captured by the tree provide limited advantage over complete independence.
+
+\subsection{Co-occurrence Weighted Conformal Sets (CWCS)}\label{subsec:co-occurrence-weighted-conformal-sets-(cwcs)}
+
+Our proposed CWCS method explicitly models asymmetric label dependencies through the empirical co-occurrence matrix estimated from training data.
+The key innovation lies in how we incorporate co-occurrence information into the nonconformity score computation.
+Rather than treating labels independently or using symmetric measures, we use directional conditional probabilities to weight the scores based on which labels are already confidently predicted.
+
+The co-occurrence matrix $\mathbf{M}$ is computed from the training set by counting joint occurrences.
+For each pair of labels $j$ and $k$, we estimate:
+
+\begin{equation}
+M_{jk} = \frac{\text{number of training images with both } j \text{ and } k}{\text{number of training images with } j}\label{eq:equation11}
+\end{equation}
+
+This provides the empirical conditional probability $P(Y^{(k)}=1 \mid Y^{(j)}=1)$.
+To reduce noise from spurious correlations, especially for rare label pairs, we apply a filtering threshold: if $M_{jk} < 0.10$, we set $M_{jk} = 0$, effectively removing weak or unreliable dependencies from consideration.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{../results/figures/co_occurrence_matrix}
+\caption{Asymmetric co-occurrence matrix showing conditional probabilities $M_{jk} = P(\text{label } k \text{ present} | \text{label } j \text{ present})$ estimated from 78,440 training images. The matrix is read with the conditioning label on the row and the predicted label on the column. Bright yellow cells indicate strong dependencies such as Consolidation predicting Pneumonia (0.55), Cardiomegaly predicting Effusion (0.48), and Infiltration predicting both Pneumonia (0.42) and Edema (0.43). Note the prominent asymmetries: while Cardiomegaly strongly predicts Effusion with probability 0.48, the reverse relationship shows Effusion predicting Cardiomegaly with only probability 0.08, yielding asymmetry measure of 0.30. These directional patterns reflect underlying clinical pathophysiology where certain conditions cause or commonly accompany others unidirectionally.}
+\label{fig:cooccurrence}
+\end{figure}
+
+For a test instance $X_{\text{test}}$ with predicted probabilities $\hat{\pi}(X_{\text{test}})$, we construct the prediction set iteratively using a greedy approach ordered by predicted probability.
+We maintain a current set $\mathcal{C}_{\text{current}}$ that starts empty, and we consider adding labels one at a time in descending order of their predicted probabilities.
+
+When considering label $k$ for inclusion, we compute a weighted nonconformity score that accounts for co-occurrence with labels already in the current set:
+
+\begin{equation}
+s_k(X_{\text{test}}, \mathcal{C}_{\text{current}}) = 1 - \hat{\pi}^{(k)}(X_{\text{test}}) \cdot \omega_k(\mathcal{C}_{\text{current}})\label{eq:equation12}
+\end{equation}
+
+The co-occurrence weight $\omega_k$ is defined as:
+
+\begin{equation}
+\omega_k(\mathcal{C}_{\text{current}}) = 1 + \lambda \cdot \max_{j \in \mathcal{C}_{\text{current}}} M_{jk}\label{eq:equation13}
+\end{equation}
+
+where $\lambda \geq 0$ is a hyperparameter controlling the strength of co-occurrence weighting.
+In our experiments, we use $\lambda = 1.0$.
+The maximum operation selects the strongest co-occurrence relationship from any label currently in the set.
+If Infiltration and Consolidation are both in the current set, and we are considering adding Pneumonia, we would use the maximum of $M_{\text{Inf},\text{Pneu}} = 0.42$ and $M_{\text{Cons},\text{Pneu}} = 0.55$, giving a weight boost of 1.55.
+This boost makes Pneumonia more likely to be included compared to a label with the same predicted probability but no co-occurrence relationships.
+
+The calibration procedure follows the same iterative construction.
+For each calibration sample $(X_i, Y_i)$, we sort labels by predicted probability and build the prediction set greedily, computing weighted scores as we go.
+The nonconformity score for that sample is defined as the maximum weighted score among all true labels:
+
+\begin{equation}
+s_i = \max_{j : Y_i^{(j)}=1} s_j(X_i, \mathcal{C}_i)\label{eq:equation14}
+\end{equation}
+
+where $\mathcal{C}_i$ represents the set being built during the greedy process.
+This score captures the \("\)hardest\("\) true label to include, following the logic of adaptive prediction sets.
+
+After collecting scores from all calibration samples, we compute the quantile $\hat{q}$ as usual.
+For test prediction, we include labels while their weighted scores remain at or below $\hat{q}$, and we stop as soon as a label's score exceeds the threshold (APS stopping rule).
+This ensures nested prediction sets necessary for valid coverage.
+
+\begin{algorithm}
+\caption{CWCS Calibration}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} Calibration set $\{(X_i, Y_i)\}_{i=1}^{n_{\text{cal}}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, parameters $\alpha, \lambda$
+\STATE \textbf{Output:} Calibrated quantile $\hat{q}$
+\STATE Initialize score list $\mathcal{S} \gets []$
+\FOR{each calibration sample $(X_i, Y_i)$}
+    \STATE Compute predictions $\hat{\pi}(X_i)$
+    \STATE Sort labels by probability: $\sigma \gets \text{argsort}(\hat{\pi}(X_i), \text{descending})$
+    \STATE Initialize $\mathcal{C} \gets \emptyset$, $s_{\max} \gets 0$
+    \FOR{each label $k$ in order $\sigma$}
+        \STATE Compute weight: $\omega_k \gets 1 + \lambda \cdot \max_{j \in \mathcal{C}} M_{jk}$ (or 1 if $\mathcal{C}$ empty)
+        \STATE Compute score: $s_k \gets 1 - \hat{\pi}^{(k)}(X_i) \cdot \omega_k$
+        \IF{$Y_i^{(k)} = 1$}
+            \STATE $s_{\max} \gets \max(s_{\max}, s_k)$
+        \ENDIF
+        \STATE $\mathcal{C} \gets \mathcal{C} \cup \{k\}$
+    \ENDFOR
+    \STATE Append $s_{\max}$ to $\mathcal{S}$
+\ENDFOR
+\STATE $\hat{q} \gets \text{Quantile}(\mathcal{S} \cup \{\infty\}, 1-\alpha)$
+\RETURN $\hat{q}$
+\end{algorithmic}\label{alg:algorithm}
+\end{algorithm}
+
+\begin{algorithm}
+\caption{CWCS Prediction}
+\begin{algorithmic}[1]
+\STATE \textbf{Input:} Test image $X_{\text{test}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, quantile $\hat{q}$, parameter $\lambda$
+\STATE \textbf{Output:} Prediction set $\mathcal{C}$
+\STATE Compute predictions $\hat{\pi}(X_{\text{test}})$
+\STATE Sort labels: $\sigma \gets \text{argsort}(\hat{\pi}(X_{\text{test}}), \text{descending})$
+\STATE Initialize $\mathcal{C} \gets \emptyset$
+\FOR{each label $k$ in order $\sigma$}
+    \STATE Compute weight: $\omega_k \gets 1 + \lambda \cdot \max_{j \in \mathcal{C}} M_{jk}$ (or 1 if $\mathcal{C}$ empty)
+    \STATE Compute score: $s_k \gets 1 - \hat{\pi}^{(k)}(X_{\text{test}}) \cdot \omega_k$
+    \IF{$s_k \leq \hat{q}$}
+        \STATE $\mathcal{C} \gets \mathcal{C} \cup \{k\}$
+    \ELSE
+        \STATE \textbf{break}
+    \ENDIF
+\ENDFOR
+\RETURN $\mathcal{C}$
+\end{algorithmic}\label{alg:algorithm2}
+\end{algorithm}
+
+The theoretical coverage guarantee follows from the standard conformal prediction framework.
+Because we apply the same scoring function consistently across calibration and test instances, and because we use the empirical quantile of calibration scores augmented with an infinite score, the construction satisfies $\mathbb{P}(Y_{\text{test}} \subseteq \mathcal{C}(X_{\text{test}})) \geq 1-\alpha$ under the exchangeability assumption.

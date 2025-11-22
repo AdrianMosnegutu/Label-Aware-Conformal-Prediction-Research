@@ -1,0 +1,150 @@
+\section{Results and Analysis}
+\label{sec:results-and-analysis}
+
+\subsection{Overall Performance Comparison}
+\label{subsec:overall-performance-comparison}
+
+Table~\ref{tab:main_results} presents the primary results comparing all four conformal prediction methods at miscoverage level $\alpha = 0.10$, corresponding to a target coverage of 90\%.
+All methods successfully achieve valid coverage, confirming that the conformal framework's theoretical guarantees hold even under the challenging conditions of extreme class imbalance and moderate base classifier performance.
+
+\begin{table}[H]
+\centering
+\caption{Conformal prediction performance comparison on ChestX-ray14 test set containing 11,482 images from 3,082 patients. All methods maintain mean label coverage at or above the target 90\% threshold, validating the distribution-free guarantees of conformal prediction. Average set sizes range from 9.82 to 11.80 labels, representing a modest 20\% spread. The similarity between Standard CP, Tree-based, and CWCS (9.82 to 9.98 labels) indicates that under extreme imbalance with weak classifier performance, conservative calibration dominates over dependency modeling effects.}
+\label{tab:main_results}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Method} & \textbf{Avg Set Size} & \textbf{Mean Coverage} \\
+\midrule
+Standard (Indep.) & 9.82 & 0.907 \\
+CDioC (APS) & 11.80 & 0.930 \\
+Tree-based CQioC & 9.91 & 0.906 \\
+CWCS (Ours) & 9.98 & 0.909 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{../results/figures/comparison_coverage}
+\caption{Mean label coverage achieved by each conformal prediction method shown with the target 90\% threshold as a red dashed line. All methods exceed the target, with Standard CP at 90.7\%, Tree-based at 90.6\%, CWCS at 90.9\%, and APS highest at 93.0\%. The slight over-coverage relative to target reflects conservative quantile estimation from finite calibration samples and the discrete nature of prediction sets. APS's higher coverage corresponds to its substantially larger average set sizes.}
+\label{fig:comparison_coverage}
+\end{figure}
+
+The most striking finding from our experiments is the similarity in average prediction set sizes achieved by Standard CP (9.82 labels), Tree-based CQioC (9.91 labels), and CWCS (9.98 labels), spanning a range of only 1.6\% or approximately 0.16 labels per image.
+This near-equivalence stands in contrast to our initial hypothesis that dependency-aware methods would achieve substantial efficiency gains through more informed label selection.
+The convergence suggests that in the regime of extreme class imbalance combined with weak base classifier performance, the primary determinant of prediction set size is the conservative calibration necessitated by poor probability estimates, rather than the specific mechanism for modeling dependencies.
+
+To understand why this occurs, consider that when the base classifier assigns probabilities in the range of 0.20 to 0.40 to multiple labels simultaneously due to uncertainty, conformal methods must cast a wide net to guarantee coverage.
+Standard CP uses very low independent thresholds (often 0.02 to 0.10 for rare classes) to ensure 90\% of positive instances are captured.
+Dependency-aware methods can potentially be more selective by leveraging co-occurrence information, but when the classifier is uniformly uncertain across many labels, there are limited opportunities to exploit this structure.
+If the model assigns moderate probabilities to five or six unrelated pathologies, CWCS cannot use co-occurrence to narrow the set because those pathologies do not strongly co-occur.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{../results/figures/comparison_set_size}
+\caption{Average prediction set size comparison showing Standard CP achieving the smallest sets at 9.82 labels, followed closely by Tree-based at 9.91 and CWCS at 9.98, while APS produces substantially larger sets at 11.80 labels. The modest differences between Standard, Tree-based, and CWCS (spanning only 0.16 labels) indicate that under severe imbalance with weak probability estimates, all methods require similarly conservative calibration. APS's 20\% larger sets stem from its cumulative probability mass approach struggling with sparse multi-label ground truth where most images have zero or one true pathology but the classifier spreads probability across many labels.}
+\label{fig:comparison_setsize}
+\end{figure}
+
+The CDioC (APS) method produces notably larger prediction sets averaging 11.80 labels, representing a 20\% increase over Standard CP. This behavior reflects fundamental challenges in adapting APS from multi-class to multi-label settings.
+The method accumulates probability mass in descending order until a calibrated threshold is exceeded, effectively asking \("\)have I included enough probability to be confident all true labels are captured?\("\) When 54\% of images truly have zero pathologies and another 27\% have exactly one, but the classifier's uncertainty causes it to distribute probability across six or seven labels with values like 0.15 to 0.30 each, the cumulative mass required to guarantee coverage becomes quite large.
+The greedy nesting property means that once we start including labels to accumulate mass, we must continue until the threshold is met, often resulting in sets containing 12 to 14 labels.
+
+\subsection{Per-Label Coverage Analysis}
+\label{subsec:per-label-coverage-analysis}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../results/figures/comparison_per_label}
+\caption{Per-label coverage rates achieved by each method across all 14 thoracic pathologies, with the 90\% target shown as a black dashed line. Common pathologies like Infiltration, Effusion, and Atelectasis consistently achieve 90 to 96\% coverage across all methods, benefiting from abundant calibration samples for precise quantile estimation. Rare labels show more variability: Edema (2.1\% prevalence) achieves only 77 to 87\% coverage across methods, falling short of the 90\% target due to insufficient calibration samples (approximately 230 positive instances). Hernia (0.2\% prevalence) paradoxically achieves near-perfect coverage across all methods because the classifier rarely predicts it with high confidence, and conservative thresholds ensure inclusion whenever it appears. The relatively small variance across methods for most labels (typically 2 to 5 percentage points) indicates that choice of conformal method has modest impact on individual label guarantees compared to fundamental challenges from class imbalance.}
+\label{fig:label_coverage}
+\end{figure}
+
+Figure~\ref{fig:label_coverage} reveals that coverage performance varies substantially across pathology classes in patterns that correlate with label prevalence.
+For common pathologies like Infiltration at 17.7\% prevalence, Effusion at 11.9\%, and Atelectasis at 10.3\%, all methods achieve stable coverage in the 90 to 96\% range, hovering close to the target 90\% threshold.
+The abundance of calibration samples for these frequent classes enables precise quantile estimation, and the base classifier has encountered sufficient training examples to produce reasonably calibrated probability estimates at least in aggregate.
+The slight over-coverage observed (92 to 96\% rather than exactly 90\%) reflects the conservative nature of conformal prediction and the discrete nature of prediction sets.
+
+In contrast, rare pathologies exhibit more erratic coverage patterns.
+Edema with 2.1\% prevalence shows coverage ranging from 77\% for Tree-based to 87\% for CDioC (APS), with most methods falling short of the 90\% target.
+This under-coverage arises from the paucity of calibration samples: with only approximately 230 Edema-positive cases in the calibration set of 10,954 images, the empirical quantile estimates become unstable and may not reliably capture the true 90th percentile of the nonconformity score distribution.
+When a label is rare, small random fluctuations in which specific instances appear in the calibration set can substantially affect the computed quantile.
+
+Hernia, the rarest pathology at only 0.2\% prevalence with approximately 22 calibration samples, demonstrates near-perfect coverage across all methods approaching 99 to 100\%.
+This seemingly paradoxical result where the rarest class achieves the best coverage can be explained by examining classifier behavior.
+With so few positive training examples, the model has learned to rarely predict Hernia with high confidence.
+When Hernia truly appears in a test image, the conformal methods almost always include it because the calibrated thresholds are conservative enough to capture even moderately confident predictions for such rare classes.
+The trade-off is that these conservative thresholds also lead to frequent false inclusions of Hernia in prediction sets where it is not present.
+
+\subsection{Case Study Analysis}
+\label{subsec:case-study-analysis}
+
+To provide concrete intuition for when and how CWCS provides value over baseline methods, we examine representative test cases that illustrate different scenarios.
+Consider an image where the base classifier produces the following probability estimates: Infiltration 0.78, Pneumonia 0.31, Consolidation 0.24, Atelectasis 0.19, with all other labels below 0.15.
+The ground truth for this image is the set containing Infiltration and Pneumonia.
+
+Standard CP with its independent label-wise thresholds would likely include Infiltration given its high confidence of 0.78, which far exceeds typical thresholds around 0.24.
+However, Pneumonia at 0.31 probability may or may not be included depending on the calibrated threshold for Pneumonia specifically.
+If the Pneumonia threshold is around 0.01 to 0.05 as suggested by Figure~\ref{fig:standard_thresholds}, then Pneumonia would be included.
+The method would also include Consolidation, Atelectasis, and potentially several other labels due to the uniformly low independent thresholds, resulting in a prediction set of perhaps 8 to 10 labels total.
+
+CWCS approaches this instance differently through its iterative weighted scoring.
+First, Infiltration is considered and included because its high probability of 0.78 produces a low nonconformity score that easily falls below the calibrated quantile.
+When subsequently considering Pneumonia, CWCS recognizes the strong co-occurrence relationship from Infiltration to Pneumonia with $M_{\text{Inf},\text{Pneu}} = 0.42$.
+The weighting factor becomes $\omega_{\text{Pneu}} = 1 + 1.0 \times 0.42 = 1.42$, providing a 42\% boost to Pneumonia's effective weight.
+This boost transforms Pneumonia's score from $s = 1 - 0.31 = 0.69$ to approximately $s = 1 - 0.31 \times 1.42 = 0.56$.
+If the calibrated quantile falls between these values, say around 0.60, then CWCS would include Pneumonia specifically because of the co-occurrence evidence, whereas an independent method might exclude it if Pneumonia's standalone score of 0.69 exceeded the threshold.
+
+When CWCS considers Consolidation next at probability 0.24, even if there is some co-occurrence boost from Infiltration, the relatively low probability may result in a score like $s = 1 - 0.24 \times 1.2 = 0.71$ that exceeds the quantile threshold, triggering the APS stopping rule and preventing inclusion of Consolidation and all subsequent lower-probability labels.
+The resulting prediction set contains Infiltration and Pneumonia, correctly capturing both true pathologies with minimal false positives.
+This example illustrates CWCS functioning as intended: leveraging co-occurrence information to include a moderately confident label (Pneumonia) when strong evidence exists from an already-included highly confident label (Infiltration).
+
+Conversely, consider a scenario where the classifier assigns moderate probabilities of 0.30 to 0.40 to several unrelated pathologies like Atelectasis 0.38, Nodule 0.34, Mass 0.31, Pleural Thickening 0.26, with ground truth being Atelectasis and Mass.
+In this case, all conformal methods struggle because the classifier exhibits uniform uncertainty without clear confidence peaks.
+CWCS cannot leverage dependency information effectively because these pathologies do not form a tightly co-occurring cluster.
+The co-occurrence matrix shows that Atelectasis, Nodule, Mass, and Pleural Thickening do not strongly predict one another, so the weighting factors remain close to 1.0 throughout the iterative construction.
+All methods end up producing large prediction sets of 10 or more labels to maintain the 90\% coverage guarantee.
+This example illustrates that dependency modeling provides limited benefit when the classifier is uniformly uncertain across unrelated pathologies, which represents a substantial fraction of test cases given the moderate F1 score of 0.32.
+
+\subsection{Ablation Study}
+\label{subsec:ablation-study}
+
+To systematically assess which design choices contribute to CWCS's performance, we conduct an ablation study that removes or modifies key components of the method while keeping all other experimental conditions constant.
+
+\begin{table}[H]
+\centering
+\caption{Ablation study examining the impact of different CWCS design choices. The full CWCS configuration uses asymmetric co-occurrence weighting with strength $\lambda=1.0$ and filters weak edges below threshold 0.10. Removing filtering increases set size by 3.3\% due to noise from spurious correlations for rare pairs. Reducing weighting strength to $\lambda=0.5$ yields performance between CWCS and Standard CP. Using symmetric co-occurrence produces results nearly identical to Tree-based CQioC at 9.91 labels, confirming both methods essentially model symmetric pairwise dependencies. The full range spans only 5\% from 9.82 to 10.31 labels, indicating modest impact of dependency modeling under extreme imbalance with weak classifiers.}
+\label{tab:ablation}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Configuration} & \textbf{Avg Set Size} & \textbf{Coverage} \\
+\midrule
+CWCS full ($\lambda=1.0$, threshold=0.10) & 9.98 & 0.909 \\
+Without filtering (all edges) & 10.31 & 0.908 \\
+Reduced strength ($\lambda=0.5$) & 9.89 & 0.908 \\
+Symmetric co-occurrence & 9.91 & 0.906 \\
+No weighting ($\lambda=0$) & 9.82 & 0.907 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Removing the co-occurrence filtering threshold by including all label pairs regardless of how weak their empirical co-occurrence increases the average set size from 9.98 to 10.31 labels, a degradation of 3.3\%.
+This increase stems from noise in co-occurrence estimates for rare label pairs.
+For instance, the Hernia-Fibrosis co-occurrence is estimated from only 5 to 10 joint occurrences in 78,440 training images, making the conditional probability estimate highly uncertain.
+When such weak correlations are included, CWCS occasionally boosts labels based on coincidental rather than genuine clinical relationships.
+The filtering threshold of 0.10 serves as regularization, focusing on well-supported dependencies while discarding unreliable estimates.
+
+Reducing the weighting strength parameter from $\lambda=1.0$ to $\lambda=0.5$ yields an average set size of 9.89 labels, nearly matching the full method.
+This suggests that even modest dependency weighting provides most of the benefit, with diminishing returns beyond $\lambda=0.5$ in this experimental setting.
+The relationship between $\lambda$ and set size is nonlinear: at $\lambda=0$, no co-occurrence information is used; at $\lambda=0.5$, some boost is provided but insufficient to substantially alter many inclusion decisions; at $\lambda=1.0$, the boost becomes meaningful for high-co-occurrence pairs like Infiltration-Pneumonia at 0.42 providing 42\% weight increase.
+
+Using symmetric co-occurrence by setting $M_{jk} = M_{kj} = \max(M_{jk}, M_{kj})$ produces an average set size of 9.91 labels, essentially identical to Tree-based CQioC's 9.91.
+This near-perfect equivalence is not coincidental: both symmetric CWCS and Tree-based methods model pairwise dependencies without directionality.
+The primary difference lies in aggregation, with CWCS using maximum co-occurrence and Tree-based using the tree structure, but under severe class imbalance these approaches converge to similar behavior.
+The symmetric variant loses the ability to distinguish strong directional relationships like \("\)Infiltration predicts Pneumonia with probability 0.\(42"\) from the weak reverse \("\)Pneumonia predicts Infiltration with probability 0.15.\("\)
+
+Setting $\lambda=0$ recovers Standard CP with independent calibration, achieving 9.82 average set size.
+Paradoxically, this represents the smallest sets among all configurations tested.
+This finding requires careful interpretation: while CWCS with dependency modeling produces marginally larger sets on average (9.98 versus 9.82), it may produce more clinically coherent prediction sets by favoring plausible label combinations.
+A set containing Infiltration, Pneumonia, and Consolidation—three pathologies with established co-occurrence patterns—provides more actionable clinical information than a set of the same size containing Infiltration, Hernia, and Fibrosis which represents an implausible combination.
+Our aggregate efficiency metrics cannot capture this qualitative difference in clinical utility.

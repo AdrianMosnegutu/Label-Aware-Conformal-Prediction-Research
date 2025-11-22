@@ -1,0 +1,87 @@
+\section{Experimental Methodology}
+\label{sec:experimental-methodology}
+
+\subsection{Dataset Description and Characteristics}
+\label{subsec:dataset-description-and-characteristics}
+
+We conduct our experiments on the ChestX-ray14 dataset, which represents one of the largest publicly available collections of annotated chest radiographs.
+The dataset comprises 112,120 frontal-view X-ray images acquired from 30,805 unique patients at the National Institutes of Health Clinical Center.
+All images are grayscale with varying resolutions, typically ranging from approximately 1024 by 1024 pixels to 2500 by 2500 pixels.
+The dataset includes comprehensive metadata for each image including patient age, gender, view position (PA or AP), and the original image dimensions.
+
+The pathology labels were extracted from radiological reports through an automated natural language processing pipeline that searched for mentions of 14 specific thoracic diseases.
+It is important to note that this automated extraction process introduces some level of label noise, with previous studies estimating the accuracy at approximately 90 to 95 percent.
+This noise ceiling represents a fundamental limitation on achievable performance, but the large scale of the dataset makes it valuable for developing and evaluating multi-label classification methods despite this imperfection.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../results/figures/label_distribution}
+\caption{Label distribution characteristics of ChestX-ray14. The left panel shows pathology frequencies in the training set, revealing extreme class imbalance spanning two orders of magnitude from Hernia at 0.2\% prevalence to Infiltration at 17.7\%. The right panel displays the distribution of number of labels per image, demonstrating that the majority of images (54\%) are labeled as "No Finding" with zero pathologies, while most pathological cases present with one or two concurrent conditions. This sparsity pattern has important implications for conformal prediction, as methods must maintain coverage when ground truth contains zero or few labels while prediction sets may contain many labels.}
+\label{fig:label_dist}
+\end{figure}
+
+The class imbalance in this dataset is severe, which reflects both the natural prevalence of different conditions in the patient population and the challenges of detecting rare pathologies in automated label extraction.
+Figure~\ref{fig:label_dist} illustrates this distribution, showing that common conditions like Infiltration appear in nearly one out of every five images, while rare conditions like Hernia occur in fewer than one out of every 400 images.
+This 88-fold difference in prevalence creates fundamental challenges for both classifier training and conformal calibration, as rare classes have insufficient samples for precise probability estimation.
+
+Beyond individual label frequencies, the multi-label distribution reveals that most images are either normal or contain only one or two pathologies.
+Approximately 54\% of images in the dataset are labeled as \("\)No Finding,\("\) indicating no significant abnormalities detected.
+Among pathological cases, the median number of concurrent conditions is one, with only about 6\% of images showing three or more simultaneous pathologies.
+This sparsity has important implications for evaluating conformal prediction methods: when the ground truth contains zero or one label but prediction sets contain nine or ten labels, this represents a substantial mismatch that we must carefully interpret.
+
+\subsection{Data Preprocessing and Splitting Strategy}
+\label{subsec:data-preprocessing-and-splitting-strategy}
+
+A critical methodological consideration in medical imaging studies is ensuring that the same patient does not appear in multiple data partitions, as this would lead to optimistically biased performance estimates due to learning patient-specific characteristics rather than generalizable disease patterns.
+We implement strict patient-level splitting by first grouping all 112,120 images by their associated patient identifier, yielding 30,805 unique patients.
+We then randomly shuffle these patients using a fixed random seed (2024 in our experiments) and assign them to partitions according to the following ratios: 70\% for training (21,563 patients corresponding to 78,440 images), 10\% for validation (3,080 patients corresponding to 11,244 images), 10\% for calibration (3,080 patients corresponding to 10,954 images), and 10\% for testing (3,082 patients corresponding to 11,482 images).
+
+The validation set serves a distinct purpose from the calibration set in our experimental protocol.
+We use the validation set during base classifier training for hyperparameter tuning, early stopping decisions, and monitoring training progress through metrics like loss and F1 score.
+The validation set is never used for conformal prediction calibration.
+In contrast, the calibration set is held completely separate during all phases of classifier training and is used exclusively for computing nonconformity scores and calibration quantiles in the conformal prediction framework.
+This strict separation is essential for maintaining the theoretical validity of conformal coverage guarantees.
+Finally, the test set is reserved for reporting all final results and is never accessed during any training or calibration procedures.
+
+For image preprocessing, we apply a standardized pipeline to prepare inputs for the ResNet-50 backbone network.
+All images are resized to 224 by 224 pixels using bilinear interpolation to match the expected input dimensions of the pretrained ImageNet model.
+Since ResNet-50 expects three-channel RGB inputs but chest X-rays are grayscale, we replicate the single intensity channel across all three color channels.
+We then normalize pixel intensities using ImageNet statistics with means of 0.485, 0.456, and 0.406 and standard deviations of 0.229, 0.224, and 0.225 for the three channels respectively.
+During training, we apply data augmentation including random horizontal flips with probability 0.5, random rotations within plus or minus 10 degrees, and random brightness and contrast adjustments.
+Importantly, we do not apply any augmentation during validation, calibration, or testing to ensure that nonconformity scores reflect the true data distribution.
+
+\subsection{Base Classifier Architecture and Training}
+\label{subsec:base-classifier-architecture-and-training}
+
+We employ ResNet-50~\cite{he2016deep}, a widely-used convolutional neural network architecture, as our base classifier.
+ResNet-50 consists of 50 layers organized into four main blocks with residual connections that enable training of deep networks by mitigating vanishing gradient problems.
+We initialize the network with weights pretrained on ImageNet, leveraging transfer learning to benefit from features learned on natural images.
+The original classification head designed for 1000-way ImageNet classification is replaced with a custom head suitable for multi-label prediction consisting of a dropout layer with probability 0.5 for regularization followed by a linear layer projecting from 2048 features to 14 output logits.
+We apply sigmoid activation to produce independent probabilities for each label, which is essential for multi-label classification as it allows multiple labels to be predicted simultaneously without forcing them into a probability distribution that sums to one.
+
+Our training strategy follows a two-phase approach designed to effectively leverage transfer learning.
+In the first phase, we freeze all parameters of the ResNet-50 backbone and train only the dropout and final linear layer for 30 epochs.
+This allows the classification head to adapt to our specific task while preserving the general-purpose features learned from ImageNet.
+We use the Adam optimizer with learning rate of 0.001 and weight decay of 0.00001 for regularization.
+The loss function is binary cross-entropy computed independently for each label, treating the multi-label problem as 14 separate binary classification tasks.
+We use a batch size of 32 images and clip gradients to a maximum norm of 1.0 to prevent exploding gradients during training.
+
+In the second phase, we unfreeze layers 3 and 4 of the ResNet-50 backbone while keeping the earlier layers frozen.
+We fine-tune these layers along with the classification head for an additional 10 epochs using a reduced learning rate of 0.0001 to avoid catastrophic forgetting of the pretrained features.
+This two-phase strategy balances adaptation to our specific task with preservation of useful pretrained representations.
+We implement early stopping with patience of 5 epochs based on validation set macro-F1 score, although in our experiments the full 30 plus 10 epochs were typically needed before convergence.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{../results/figures/training_history}
+\caption{Training curves for the ResNet-50 base classifier over 30 epochs. The left panel shows training loss (blue) steadily decreasing from 0.80 to 0.49, while validation loss (orange) decreases initially but plateaus around 0.71 after epoch 20, with slight subsequent degradation indicating mild overfitting. The right panel displays validation macro-F1 score (green) progression, reaching a maximum of approximately 0.28 around epochs 22 through 25. The target F1 of 0.40 (red dashed line) is not achieved, reflecting fundamental challenges from extreme class imbalance where rare pathologies like Hernia have only 140 training examples and label noise from automated text extraction affecting 5 to 10 percent of annotations. This moderate performance (F1 equals 0.32 on test set) necessitates conservative conformal calibration regardless of dependency modeling approach.}
+\label{fig:training}
+\end{figure}
+
+The base classifier achieves a macro-F1 score of 0.32 on the validation set and test set.
+While this performance may appear modest, it is important to understand this result in context.
+The macro-F1 metric equally weights all 14 pathology classes, meaning that poor performance on rare classes like Hernia and Pneumonia substantially reduces the overall score even if the model performs well on common classes.
+Given that Hernia appears in only 140 images in the training set out of over 78,000 total training images, it is extremely difficult for the model to learn robust features for this class.
+Additionally, the label noise from automated text extraction provides a fundamental ceiling on achievable performance.
+Figure~\ref{fig:training} shows that the model continues to improve on the training set throughout training while validation performance plateaus, suggesting that further gains would require addressing the class imbalance through techniques like oversampling rare classes or using specialized loss functions, or improving label quality through manual annotation.
+For our purposes, this moderate-performance classifier serves as a realistic baseline for evaluating conformal prediction methods under challenging practical conditions.

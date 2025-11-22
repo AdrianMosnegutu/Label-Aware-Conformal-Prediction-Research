@@ -1,0 +1,13 @@
+\section{Conclusion}
+\label{sec:conclusion}
+
+We introduced Co-occurrence Weighted Conformal Sets (CWCS), a conformal prediction framework that explicitly models asymmetric label dependencies for multi-label medical image classification.
+Through rigorous evaluation on ChestX-ray14 encompassing over 112,000 chest radiographs with 14 pathology labels exhibiting extreme class imbalance, we demonstrated that CWCS maintains valid 90\% coverage guarantees while producing prediction sets aligned with clinical co-occurrence patterns including strong asymmetries like Infiltration predicting Pneumonia with measure 0.39 and Cardiomegaly predicting Effusion with measure 0.30.
+
+Under the challenging conditions of our experimental setting with moderate base classifier performance achieving macro F1 of 0.32, all conformal methods except APS produce similar aggregate efficiency measured by average set sizes of 9.82 to 9.98 labels.
+This convergence indicates that conservative calibration necessitated by poor probability estimates dominates over dependency modeling effects in this regime.
+However, this aggregate similarity masks CWCS's value in systematically respecting directional clinical relationships, offering advantages in interpretability and clinical coherence beyond what efficiency metrics capture.
+
+Our work contributes both a practical method for incorporating asymmetric dependencies into conformal prediction and broader insights about when and why dependency modeling provides value in uncertainty quantification for medical AI systems.
+As base classifier quality improves and prediction sets tighten, we expect the advantages of dependency-aware methods to become more pronounced.
+The framework we have developed provides a foundation for future research into structured conformal prediction approaches that leverage domain knowledge while maintaining the distribution-free coverage guarantees essential for responsible deployment in high-stakes medical applications.

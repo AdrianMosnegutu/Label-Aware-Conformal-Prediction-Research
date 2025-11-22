@@ -1,0 +1,12 @@
+\begin{abstract}
+    \begin{quotation}
+
+    Multi-label classification in medical imaging requires reliable uncertainty quantification due to critical clinical consequences.
+    While conformal prediction provides distribution-free coverage guarantees, existing approaches either ignore label dependencies or model them symmetrically, failing to capture the asymmetric conditional relationships prevalent in medical diagnosis.
+    We introduce Co-occurrence Weighted Conformal Sets (CWCS), a conformal prediction method that explicitly models asymmetric label dependencies through empirically-derived co-occurrence statistics.
+    We evaluate CWCS on the ChestX-ray14 dataset (112,120 images spanning 14 thoracic pathologies) comparing against three established baselines: Standard Conformal Prediction with independent calibration, Conditional Conformal Prediction with Adaptive Prediction Sets, and Tree-based Conformal Quantile of Inclusion Order using Chow-Liu trees.
+    Our experiments demonstrate that under extreme class imbalance (prevalence ranging from 0.2\% to 17.7\%) combined with moderate base classifier performance (macro F1 score of 0.32), all conformal methods achieve similar average prediction set sizes (9.82 to 9.98 labels) while maintaining valid 90\% coverage guarantees.
+    However, CWCS systematically produces prediction sets that respect clinically meaningful asymmetric dependencies such as Infiltration predicting Pneumonia with asymmetry measure of 0.39 and Cardiomegaly predicting Effusion with asymmetry of 0.30, offering value in clinical coherence and interpretability beyond what aggregate efficiency metrics capture.
+
+    \end{quotation}
+\end{abstract}
