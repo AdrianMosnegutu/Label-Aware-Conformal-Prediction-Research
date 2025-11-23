@@ -1,2 +1,9 @@
+.DS_Store
 .idea/
 .venv/
+data/
+models/
+results/
+!results/figures
+**/__pycache__
+article/out
