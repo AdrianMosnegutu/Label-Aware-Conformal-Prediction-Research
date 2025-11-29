@@ -8,14 +8,38 @@ Traditional machine learning approaches typically treat each diagnostic label in
 
 These dependencies are not merely statistical correlations but often reflect underlying pathophysiological mechanisms.
 For instance, cardiomegaly (an enlarged heart) frequently causes pleural effusion (fluid accumulation around the lungs) through congestive heart failure mechanisms, while infiltration patterns in lung tissue commonly precede or accompany pneumonia.
-A radiologist naturally considers these relationships when interpreting images, asking questions like \("\)given that I see infiltration, should I look more carefully for signs of pneumonia?\("\) This conditional reasoning process suggests that machine learning models would benefit from explicitly modeling such asymmetric dependencies rather than treating each label as an independent prediction problem.
+A radiologist naturally considers these relationships when interpreting images, asking questions like ``given that I see infiltration, should I look more carefully for signs of pneumonia?''
+Critically, these relationships are often \emph{asymmetric}: infiltration strongly predicts pneumonia, but the reverse implication is weaker.
+This directional reasoning suggests that machine learning models would benefit from explicitly modeling such asymmetric dependencies rather than treating each label as an independent prediction problem.
 
 Beyond accurate point predictions, clinical deployment of machine learning systems demands rigorous uncertainty quantification.
 Conformal prediction offers an elegant framework for constructing prediction sets with finite-sample coverage guarantees that hold distribution-free, without requiring specific assumptions about the underlying data generating process~\cite{vovk2005algorithmic}.
 This property makes conformal prediction particularly attractive for medical applications where distributional assumptions are difficult to verify and model misspecification is common.
-However, most existing conformal prediction methods for multi-label problems either treat labels independently or model dependencies through symmetric measures like mutual information, failing to capture the directional nature of many clinical relationships.
+However, existing conformal prediction methods for multi-label problems present significant limitations.
+Standard approaches treat labels independently~\cite{angelopoulos2020uncertainty}, ignoring clinical dependencies entirely.
+More sophisticated methods model dependencies through symmetric measures~\cite{messoudi2021copula} or nested set constructions~\cite{cauchois2021knowing}, but fail to capture the directional nature of many clinical relationships.
+\emph{No existing method explicitly models asymmetric label dependencies within the conformal prediction framework for multi-label classification.}
 
-In this work, we introduce Co-occurrence Weighted Conformal Sets (CWCS), a novel conformal prediction framework that explicitly leverages asymmetric label dependencies estimated from empirical co-occurrence patterns in training data.
-Our method constructs prediction sets by incorporating weighted nonconformity scores that account for how strongly the presence of one pathology predicts the presence of another, while recognizing that this relationship may not be symmetric.
-Through comprehensive experiments on the ChestX-ray14 dataset encompassing over 112,000 radiographs from more than 30,000 patients, we evaluate CWCS against three established baseline methods and provide detailed analysis of when and why dependency modeling provides value in practical medical imaging applications.
+\paragraph{Contributions.}
+This work introduces Co-occurrence Weighted Conformal Sets (CWCS), a novel conformal prediction framework that explicitly leverages asymmetric label dependencies estimated from empirical co-occurrence patterns in training data.
+Our method constructs prediction sets by incorporating weighted nonconformity scores that account for how strongly the presence of one pathology predicts another, recognizing that this relationship may not be symmetric.
+We address three key research questions:
+\begin{enumerate}
+    \item Can asymmetric dependency modeling produce prediction sets that better align with clinical reasoning while maintaining valid coverage guarantees?
+    \item Under what conditions (particularly severe class imbalance common in medical imaging) do dependency-aware methods provide advantages over simpler baselines?
+    \item What measurable directionality exists in clinical pathology relationships, and can conformal methods capture it?
+\end{enumerate}
 
+Through comprehensive experiments on the ChestX-ray14 dataset encompassing over 112,000 radiographs from more than 30,000 patients, we benchmark CWCS against standard conformal prediction, nested set methods (CDioCo), and tree-based approaches modeling symmetric dependencies (CQioCo).
+Our evaluation reveals that under severe class imbalance (pathology prevalence 0.2\%--17.7\%), all methods achieve similar prediction set efficiency while maintaining valid coverage.
+However, CWCS uniquely captures clinically meaningful asymmetric dependencies with measurable directionality, producing prediction sets that respect the conditional structure of medical diagnosis.
+This represents the first systematic investigation of asymmetric dependency modeling in conformal prediction for multi-label medical imaging.
+
+\paragraph{Paper organization.}
+The remainder of this paper is organized as follows.
+Section~\ref{sec:related-work} reviews related work in uncertainty quantification for medical imaging.
+Section~\ref{sec:background-and-problem-formulation} presents our CWCS method and benchmark approaches.
+Section~\ref{sec:experimental-methodology} describes the experimental setup and ChestX-ray14 dataset.
+Section~\ref{sec:conformal-prediction-methods} presents our CWCS method and benchmark approaches.
+Section~\ref{sec:results-and-analysis} presents comprehensive results and analysis.
+Section~\ref{sec:discussion} concludes with discussion of limitations and future directions.
