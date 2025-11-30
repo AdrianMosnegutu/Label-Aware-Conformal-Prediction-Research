@@ -107,108 +107,125 @@ This similarity suggests that under severe class imbalance with a weak base clas
 
 \subsection{Co-occurrence Weighted Conformal Sets (CWCS)}\label{subsec:co-occurrence-weighted-conformal-sets-(cwcs)}
 
-Our proposed CWCS method explicitly models asymmetric label dependencies through the empirical co-occurrence matrix estimated from training data.
-The key innovation lies in how we incorporate co-occurrence information into the nonconformity score computation.
-Rather than treating labels independently or using symmetric measures, we use directional conditional probabilities to weight the scores based on which labels are already confidently predicted.
+\subsubsection{Motivation and Key Innovation}
 
-The co-occurrence matrix $\mathbf{M}$ is computed from the training set by counting joint occurrences.
-For each pair of labels $j$ and $k$, we estimate:
+Existing conformal prediction methods for multi-label classification face a fundamental limitation: they either ignore label dependencies entirely or model them through symmetric measures like mutual information. However, clinical pathology relationships are inherently \emph{asymmetric}. The conditional probability $P(Y^{(k)} = 1 | Y^{(j)} = 1)$ that pneumonia is present given infiltration differs substantially from $P(Y^{(j)} = 1 | Y^{(k)} = 1)$, the reverse conditional probability.
 
+Our key innovation is to incorporate these directional dependencies directly into the nonconformity score computation through \emph{co-occurrence weighting}. Rather than treating all label pairs symmetrically or ignoring dependencies, CWCS uses empirical conditional probabilities estimated from training data to adjust how confidently we include labels based on what is already in the prediction set.
+
+\subsubsection{Co-occurrence Matrix Estimation}
+
+The co-occurrence matrix $\mathbf{M} \in [0,1]^{L \times L}$ quantifies directional dependencies between all label pairs. Each entry represents an empirical conditional probability:
 \begin{equation}
-M_{jk} = \frac{\text{number of training images with both } j \text{ and } k}{\text{number of training images with } j}\label{eq:equation11}
+M_{jk} = \frac{\sum_{i=1}^{n} Y_i^{(j)} \cdot Y_i^{(k)}}{\sum_{i=1}^{n} Y_i^{(j)}}
 \end{equation}
 
-This provides the empirical conditional probability $P(Y^{(k)}=1 \mid Y^{(j)}=1)$.
-To reduce noise from spurious correlations, especially for rare label pairs, we apply a filtering threshold: if $M_{jk} < 0.10$, we set $M_{jk} = 0$, effectively removing weak or unreliable dependencies from consideration.
+This provides the empirical estimate of $P(Y^{(k)} = 1 | Y^{(j)} = 1)$ from the training set. Unlike mutual information $I(Y^{(j)}; Y^{(k)})$, which is symmetric by construction, $M_{jk} \neq M_{kj}$ in general, allowing us to capture directional relationships.
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.8\textwidth]{../results/figures/co_occurrence_matrix}
-\caption{Asymmetric co-occurrence matrix showing conditional probabilities $M_{jk} = P(\text{label } k \text{ present} | \text{label } j \text{ present})$ estimated from 78,440 training images. The matrix is read with the conditioning label on the row and the predicted label on the column. Bright yellow cells indicate strong dependencies such as Consolidation predicting Pneumonia (0.55), Cardiomegaly predicting Effusion (0.48), and Infiltration predicting both Pneumonia (0.42) and Edema (0.43). Note the prominent asymmetries: while Cardiomegaly strongly predicts Effusion with probability 0.48, the reverse relationship shows Effusion predicting Cardiomegaly with only probability 0.08, yielding asymmetry measure of 0.30. These directional patterns reflect underlying clinical pathophysiology where certain conditions cause or commonly accompany others unidirectionally.}
-\label{fig:cooccurrence}
-\end{figure}
-
-For a test instance $X_{\text{test}}$ with predicted probabilities $\hat{\pi}(X_{\text{test}})$, we construct the prediction set iteratively using a greedy approach ordered by predicted probability.
-We maintain a current set $\mathcal{C}_{\text{current}}$ that starts empty, and we consider adding labels one at a time in descending order of their predicted probabilities.
-
-When considering label $k$ for inclusion, we compute a weighted nonconformity score that accounts for co-occurrence with labels already in the current set:
-
+To improve robustness against spurious correlations, especially for rare label pairs with few joint observations, we apply filtering:
 \begin{equation}
-s_k(X_{\text{test}}, \mathcal{C}_{\text{current}}) = 1 - \hat{\pi}^{(k)}(X_{\text{test}}) \cdot \omega_k(\mathcal{C}_{\text{current}})\label{eq:equation12}
+M_{jk} \leftarrow \begin{cases}
+M_{jk} & \text{if } M_{jk} \geq \tau \\
+0 & \text{otherwise}
+\end{cases}
+\end{equation}
+where $\tau = 0.10$ is our filtering threshold. This removes weak or unreliable dependencies estimated from small sample sizes. For instance, co-occurrences between Hernia and Fibrosis are observed in fewer than 10 training images, making their conditional probability estimates highly uncertain.
+
+\subsubsection{Weighted Nonconformity Scores}
+
+The core of CWCS lies in how we compute nonconformity scores. Traditional approaches use:
+\begin{equation}
+s_k = 1 - \hat{\pi}^{(k)}(X)
 \end{equation}
 
-The co-occurrence weight $\omega_k$ is defined as:
-
+CWCS extends this by incorporating co-occurrence information from labels already in the current prediction set $C_{\text{current}}$:
 \begin{equation}
-\omega_k(\mathcal{C}_{\text{current}}) = 1 + \lambda \cdot \max_{j \in \mathcal{C}_{\text{current}}} M_{jk}\label{eq:equation13}
+s_k(X, C_{\text{current}}) = 1 - \hat{\pi}^{(k)}(X) \cdot \omega_k(C_{\text{current}})
 \end{equation}
 
-where $\lambda \geq 0$ is a hyperparameter controlling the strength of co-occurrence weighting.
-In our experiments, we use $\lambda = 1.0$.
-The maximum operation selects the strongest co-occurrence relationship from any label currently in the set.
-If Infiltration and Consolidation are both in the current set, and we are considering adding Pneumonia, we would use the maximum of $M_{\text{Inf},\text{Pneu}} = 0.42$ and $M_{\text{Cons},\text{Pneu}} = 0.55$, giving a weight boost of 1.55.
-This boost makes Pneumonia more likely to be included compared to a label with the same predicted probability but no co-occurrence relationships.
-
-The calibration procedure follows the same iterative construction.
-For each calibration sample $(X_i, Y_i)$, we sort labels by predicted probability and build the prediction set greedily, computing weighted scores as we go.
-The nonconformity score for that sample is defined as the maximum weighted score among all true labels:
-
+where the co-occurrence weight is defined as:
 \begin{equation}
-s_i = \max_{j : Y_i^{(j)}=1} s_j(X_i, \mathcal{C}_i)\label{eq:equation14}
+\omega_k(C_{\text{current}}) = 1 + \lambda \cdot \max_{j \in C_{\text{current}}} M_{jk}
 \end{equation}
 
-where $\mathcal{C}_i$ represents the set being built during the greedy process.
-This score captures the \("\)hardest\("\) true label to include, following the logic of adaptive prediction sets.
+The parameter $\lambda \geq 0$ controls weighting strength. The key insight is that if label $k$ has high co-occurrence with any label already in $C_{\text{current}}$, we boost its effective probability by factor $\omega_k$, making it more likely to be included.
 
-After collecting scores from all calibration samples, we compute the quantile $\hat{q}$ as usual.
-For test prediction, we include labels while their weighted scores remain at or below $\hat{q}$, and we stop as soon as a label's score exceeds the threshold (APS stopping rule).
-This ensures nested prediction sets necessary for valid coverage.
+\paragraph{Example.} Suppose Infiltration is already in $C_{\text{current}}$ with high confidence. When considering Pneumonia with predicted probability $\hat{\pi}^{(\text{Pneu})} = 0.31$, the co-occurrence weight becomes:
+\begin{equation}
+\omega_{\text{Pneu}} = 1 + 1.0 \times M_{\text{Inf,Pneu}} = 1 + 1.0 \times 0.42 = 1.42
+\end{equation}
 
-\begin{algorithm}
+This transforms the nonconformity score from $s = 1 - 0.31 = 0.69$ to $s = 1 - 0.31 \times 1.42 = 0.56$, making Pneumonia substantially more likely to be included based on its clinical relationship with Infiltration.
+
+\subsubsection{Greedy Prediction Set Construction}
+
+CWCS constructs prediction sets iteratively using a greedy approach that respects the natural ordering by predicted probability while incorporating co-occurrence information. This ensures that prediction sets are nested (required for valid conformal coverage) while allowing asymmetric dependencies to influence inclusion decisions.
+
+\begin{algorithm}[H]
 \caption{CWCS Calibration}
 \begin{algorithmic}[1]
-\STATE \textbf{Input:} Calibration set $\{(X_i, Y_i)\}_{i=1}^{n_{\text{cal}}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, parameters $\alpha, \lambda$
-\STATE \textbf{Output:} Calibrated quantile $\hat{q}$
-\STATE Initialize score list $\mathcal{S} \gets []$
-\FOR{each calibration sample $(X_i, Y_i)$}
-    \STATE Compute predictions $\hat{\pi}(X_i)$
-    \STATE Sort labels by probability: $\sigma \gets \text{argsort}(\hat{\pi}(X_i), \text{descending})$
-    \STATE Initialize $\mathcal{C} \gets \emptyset$, $s_{\max} \gets 0$
-    \FOR{each label $k$ in order $\sigma$}
-        \STATE Compute weight: $\omega_k \gets 1 + \lambda \cdot \max_{j \in \mathcal{C}} M_{jk}$ (or 1 if $\mathcal{C}$ empty)
-        \STATE Compute score: $s_k \gets 1 - \hat{\pi}^{(k)}(X_i) \cdot \omega_k$
-        \IF{$Y_i^{(k)} = 1$}
-            \STATE $s_{\max} \gets \max(s_{\max}, s_k)$
-        \ENDIF
-        \STATE $\mathcal{C} \gets \mathcal{C} \cup \{k\}$
-    \ENDFOR
-    \STATE Append $s_{\max}$ to $\mathcal{S}$
-\ENDFOR
-\STATE $\hat{q} \gets \text{Quantile}(\mathcal{S} \cup \{\infty\}, 1-\alpha)$
-\RETURN $\hat{q}$
-\end{algorithmic}\label{alg:algorithm}
+\Require Calibration set $\{(X_i, Y_i)\}_{i=1}^{n_{\text{cal}}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, parameters $\alpha, \lambda$
+\Ensure Calibrated quantile $\hat{q}$
+\State Initialize score list $S \leftarrow []$
+\For{each calibration sample $(X_i, Y_i)$}
+    \State Compute predictions $\hat{\pi}(X_i)$
+    \State Sort labels by probability: $\sigma \leftarrow \text{argsort}(\hat{\pi}(X_i), \text{descending})$
+    \State Initialize $C \leftarrow \emptyset$, $s_{\max} \leftarrow 0$
+    \For{each label $k$ in order $\sigma$}
+        \State Compute weight: $\omega_k \leftarrow 1 + \lambda \cdot \max_{j \in C} M_{jk}$ (or 1 if $C$ empty)
+        \State Compute score: $s_k \leftarrow 1 - \hat{\pi}^{(k)}(X_i) \cdot \omega_k$
+        \If{$Y_i^{(k)} = 1$}
+            \State $s_{\max} \leftarrow \max(s_{\max}, s_k)$
+        \EndIf
+        \State $C \leftarrow C \cup \{k\}$
+    \EndFor
+    \State Append $s_{\max}$ to $S$
+\EndFor
+\State $\hat{q} \leftarrow \text{Quantile}(S \cup \{\infty\}, 1-\alpha)$
+\State \Return $\hat{q}$
+\end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}
+\begin{algorithm}[H]
 \caption{CWCS Prediction}
 \begin{algorithmic}[1]
-\STATE \textbf{Input:} Test image $X_{\text{test}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, quantile $\hat{q}$, parameter $\lambda$
-\STATE \textbf{Output:} Prediction set $\mathcal{C}$
-\STATE Compute predictions $\hat{\pi}(X_{\text{test}})$
-\STATE Sort labels: $\sigma \gets \text{argsort}(\hat{\pi}(X_{\text{test}}), \text{descending})$
-\STATE Initialize $\mathcal{C} \gets \emptyset$
-\FOR{each label $k$ in order $\sigma$}
-    \STATE Compute weight: $\omega_k \gets 1 + \lambda \cdot \max_{j \in \mathcal{C}} M_{jk}$ (or 1 if $\mathcal{C}$ empty)
-    \STATE Compute score: $s_k \gets 1 - \hat{\pi}^{(k)}(X_{\text{test}}) \cdot \omega_k$
-    \IF{$s_k \leq \hat{q}$}
-        \STATE $\mathcal{C} \gets \mathcal{C} \cup \{k\}$
-    \ELSE
-        \STATE \textbf{break}
-    \ENDIF
-\ENDFOR
-\RETURN $\mathcal{C}$
-\end{algorithmic}\label{alg:algorithm2}
+\Require Test image $X_{\text{test}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, quantile $\hat{q}$, parameter $\lambda$
+\Ensure Prediction set $C$
+\State Compute predictions $\hat{\pi}(X_{\text{test}})$
+\State Sort labels: $\sigma \leftarrow \text{argsort}(\hat{\pi}(X_{\text{test}}), \text{descending})$
+\State Initialize $C \leftarrow \emptyset$
+\For{each label $k$ in order $\sigma$}
+    \State Compute weight: $\omega_k \leftarrow 1 + \lambda \cdot \max_{j \in C} M_{jk}$ (or 1 if $C$ empty)
+    \State Compute score: $s_k \leftarrow 1 - \hat{\pi}^{(k)}(X_{\text{test}}) \cdot \omega_k$
+    \If{$s_k \leq \hat{q}$}
+        \State $C \leftarrow C \cup \{k\}$
+    \Else
+        \State \textbf{break}
+    \EndIf
+\EndFor
+\State \Return $C$
+\end{algorithmic}
 \end{algorithm}
 
-The theoretical coverage guarantee follows from the standard conformal prediction framework.
-Because we apply the same scoring function consistently across calibration and test instances, and because we use the empirical quantile of calibration scores augmented with an infinite score, the construction satisfies $\mathbb{P}(Y_{\text{test}} \subseteq \mathcal{C}(X_{\text{test}})) \geq 1-\alpha$ under the exchangeability assumption.
+\subsubsection{Theoretical Guarantees}
+
+The validity of CWCS follows from the standard conformal prediction framework. Because we apply the same scoring function consistently across calibration and test instances, and because we use the empirical $(1-\alpha)$-quantile of calibration scores augmented with an infinite score, the method satisfies:
+\begin{equation}
+P_{(X,Y) \sim P_{XY}}(Y \subseteq C(X)) \geq 1 - \alpha
+\end{equation}
+
+under the exchangeability assumption. Crucially, this guarantee holds regardless of whether the co-occurrence matrix accurately reflects true dependencies or whether the classifier is well-calibrated. The conformal framework provides coverage validity even when the dependency model is misspecified.
+
+\subsubsection{Distinguishing Features from Prior Work}
+
+CWCS differs from existing methods in several key aspects:
+
+\begin{itemize}
+\item \textbf{vs. Standard CP}: Unlike independent label-wise calibration, CWCS leverages inter-label dependencies to produce more coherent prediction sets that respect clinical relationships.
+
+\item \textbf{vs. Tree-based methods} (CQioCo): While tree-based approaches model pairwise dependencies, they use mutual information which is inherently symmetric: $I(Y^{(j)}; Y^{(k)}) = I(Y^{(k)}; Y^{(j)})$. CWCS uses conditional probabilities $M_{jk} \neq M_{kj}$, capturing directional relationships like "infiltration predicts pneumonia more strongly than pneumonia predicts infiltration."
+
+\item \textbf{vs. Nested set methods} (CDioCo/APS): These methods order labels by confidence but do not explicitly model label dependencies. CWCS combines probability-based ordering with co-occurrence weighting, allowing clinical structure to inform inclusion decisions beyond mere predicted probability.
+\end{itemize}
+
+The asymmetric dependency modeling represents the first systematic integration of directional clinical relationships into conformal prediction for multi-label medical imaging, addressing a gap identified in our literature review where no existing method explicitly captures asymmetric label dependencies within the conformal framework.
