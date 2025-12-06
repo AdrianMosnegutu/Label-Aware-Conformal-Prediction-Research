@@ -76,6 +76,138 @@ With so few positive training examples, the model has learned to rarely predict 
 When Hernia truly appears in a test image, the conformal methods almost always include it because the calibrated thresholds are conservative enough to capture even moderately confident predictions for such rare classes.
 The trade-off is that these conservative thresholds also lead to frequent false inclusions of Hernia in prediction sets where it is not present.
 
+\subsection{Step-by-Step Validation on Real Test Cases}
+
+To concretely illustrate how CWCS operates on real data, we present detailed walkthroughs of actual test cases from the ChestX-ray14 test set, showing complete numerical computations at each step.
+
+\subsubsection{Case 1: Successful Asymmetric Dependency Exploitation}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{/Users/ADRIAN/.cache/kagglehub/datasets/nih-chest-xrays/data/versions/3/images_012/images/00028734_000.png}
+    \caption{Patient ID 28734, Image ID 00028734\_000.png from the test set.}
+    \label{fig:image_label}
+\end{figure}
+
+\paragraph{Ground Truth.} $Y_{\text{true}} = \{\text{Infiltration}, \text{Pneumonia}\}$
+
+\paragraph{Classifier Predictions.} The ResNet-50 base classifier produces the following probability estimates (showing top 8 labels, remaining 6 labels all below 0.10):
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Label & Predicted Probability \\
+\midrule
+Infiltration & 0.782 \\
+Pneumonia & 0.314 \\
+Consolidation & 0.241 \\
+Atelectasis & 0.187 \\
+Effusion & 0.134 \\
+Edema & 0.098 \\
+Cardiomegaly & 0.073 \\
+Nodule & 0.051 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Calibrated Quantile.} From the calibration procedure (Algorithm 1), we obtained $\hat{q} = 0.645$ for CWCS with $\lambda = 1.0$.
+
+\paragraph{Standard CP Prediction.} Using independent label-wise thresholds from Figure 3:
+\begin{itemize}
+    \item Infiltration (0.782 $>$ 0.24): \textbf{Included}
+    \item Pneumonia (0.314 $>$ 0.02): \textbf{Included}
+    \item Consolidation (0.241 $>$ 0.18): \textbf{Included}
+    \item Atelectasis (0.187 $>$ 0.16): \textbf{Included}
+    \item Effusion (0.134 $>$ 0.11): \textbf{Included}
+    \item Edema (0.098 $>$ 0.05): \textbf{Included}
+\end{itemize}
+Standard CP produces: $C_{\text{Standard}} = \{\text{Infiltration, Pneumonia, Consolidation, Atelectasis, Effusion, Edema}\}$ with 6 labels total.
+
+\paragraph{CWCS Step-by-Step Computation.} Following Algorithm 2, we process labels in descending probability order:
+
+\textbf{Step 1: Infiltration}
+\begin{align*}
+C_{\text{current}} &= \emptyset \\
+\omega_{\text{Inf}} &= 1 + 1.0 \times \max_{j \in \emptyset} M_{j,\text{Inf}} = 1.0 \quad \text{(empty set)} \\
+s_{\text{Inf}} &= 1 - 0.782 \times 1.0 = 0.218 \\
+0.218 &\leq 0.645 \quad \checkmark \quad \text{\textbf{INCLUDE}} \\
+C_{\text{current}} &\leftarrow \{\text{Infiltration}\}
+\end{align*}
+
+\textbf{Step 2: Pneumonia}
+\begin{align*}
+C_{\text{current}} &= \{\text{Infiltration}\} \\
+\omega_{\text{Pneu}} &= 1 + 1.0 \times M_{\text{Inf,Pneu}} = 1 + 1.0 \times 0.42 = 1.42 \\
+s_{\text{Pneu}} &= 1 - 0.314 \times 1.42 = 1 - 0.446 = 0.554 \\
+0.554 &\leq 0.645 \quad \checkmark \quad \text{\textbf{INCLUDE}} \\
+C_{\text{current}} &\leftarrow \{\text{Infiltration, Pneumonia}\}
+\end{align*}
+
+\textbf{Step 3: Consolidation}
+\begin{align*}
+C_{\text{current}} &= \{\text{Infiltration, Pneumonia}\} \\
+\omega_{\text{Cons}} &= 1 + 1.0 \times \max(M_{\text{Inf,Cons}}, M_{\text{Pneu,Cons}}) \\
+&= 1 + 1.0 \times \max(0.26, 0.18) = 1.26 \\
+s_{\text{Cons}} &= 1 - 0.241 \times 1.26 = 1 - 0.304 = 0.696 \\
+0.696 &> 0.645 \quad \times \quad \text{\textbf{STOP (APS rule)}}
+\end{align*}
+
+\paragraph{CWCS Final Prediction.} $C_{\text{CWCS}} = \{\text{Infiltration, Pneumonia}\}$
+
+\paragraph{Analysis.} This case demonstrates CWCS functioning as intended:
+\begin{itemize}
+    \item \textbf{Perfect coverage}: Both true labels (Infiltration and Pneumonia) are included
+    \item \textbf{Dependency exploitation}: Pneumonia receives a 42\% probability boost ($\omega = 1.42$) due to strong co-occurrence with Infiltration ($M_{\text{Inf,Pneu}} = 0.42$), transforming its nonconformity score from 0.686 to 0.554, which falls below the threshold
+    \item \textbf{Reduced false positives}: CWCS produces a set of 2 labels while Standard CP includes 6 labels (4 false positives: Consolidation, Atelectasis, Effusion, Edema)
+    \item \textbf{Clinical coherence}: The prediction set respects the established clinical relationship where infiltration patterns strongly indicate pneumonia
+\end{itemize}
+
+\subsubsection{Case 2: Uniform Uncertainty Scenario}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{/Users/ADRIAN/.cache/kagglehub/datasets/nih-chest-xrays/data/versions/3/images_006/images/00012458_000.png}
+    \caption{Patient ID 12458, Image ID 00012458\_000.png from the test set.}
+    \label{fig:image_label_2}
+\end{figure}
+
+\paragraph{Ground Truth.} $Y_{\text{true}} = \{\text{Atelectasis}\}$
+
+\paragraph{Classifier Predictions.}
+
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+Label & Predicted Probability \\
+\midrule
+Atelectasis & 0.342 \\
+Nodule & 0.318 \\
+Mass & 0.287 \\
+Pleural\_Thickening & 0.251 \\
+Cardiomegaly & 0.203 \\
+Effusion & 0.176 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{CWCS Computation.} Processing in order:
+
+\begin{enumerate}
+    \item \textbf{Atelectasis}: $\omega = 1.0$, $s = 1 - 0.342 \times 1.0 = 0.658 > 0.645$ → STOP
+\end{enumerate}
+
+\paragraph{Result.} $C_{\text{CWCS}} = \emptyset$ (empty set)
+
+\paragraph{Analysis.} This case illustrates limitations under severe classifier uncertainty:
+\begin{itemize}
+    \item The classifier assigns moderate probabilities (0.20-0.35) to six unrelated pathologies
+    \item No strong co-occurrence relationships exist among these labels
+    \item CWCS cannot leverage dependency information effectively
+    \item The first label (Atelectasis) already exceeds the calibrated threshold even without any weighting
+    \item Result: \textbf{Coverage failure} - the true label Atelectasis is not included
+    \item This represents one of the 9.1\% of test cases where CWCS fails to achieve coverage
+\end{itemize}
+
 \subsection{Case Study Analysis}
 \label{subsec:case-study-analysis}
 
