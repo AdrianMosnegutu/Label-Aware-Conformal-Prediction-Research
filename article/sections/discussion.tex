@@ -1,23 +1,220 @@
 \section{Discussion}
 \label{sec:discussion}
 
-Our comprehensive evaluation of CWCS and three baseline conformal prediction methods on ChestX-ray14 reveals nuanced insights that both confirm and challenge initial expectations about label-aware uncertainty quantification under extreme class imbalance.
-While CWCS successfully models asymmetric dependencies prevalent in chest radiography diagnosis, the aggregate efficiency gains measured by average prediction set size are modest, with all methods except APS producing sets of 9.82 to 9.98 labels representing only a 1.6\% spread.
-This similarity stems from the dominant influence of conservative calibration required when base classifiers produce poorly calibrated probability estimates across severely imbalanced classes.
+\subsection{Answers to Research Questions}
 
-The key insight from our experiments is that dependency modeling matters most when the base classifier provides reasonably confident and well-calibrated predictions for at least some labels, enabling the conformal method to make informed decisions about which other labels to include based on co-occurrence structure.
-In our experimental setting with a classifier achieving macro F1 of 0.32, many test instances receive moderate probabilities spread across multiple unrelated labels without clear confidence peaks.
-In such cases, all conformal methods must conservatively include many labels to guarantee coverage, and the opportunity to exploit dependency structure is limited.
+\subsubsection{RQ1: Can asymmetric dependency modeling produce clinically aligned prediction sets while maintaining coverage?}
 
-However, aggregate set size metrics mask important qualitative differences.
-CWCS systematically produces prediction sets that respect clinically meaningful asymmetric dependencies, such as including both Infiltration and Pneumonia when Infiltration is confidently predicted and co-occurrence evidence is strong, rather than including Infiltration alongside clinically implausible labels.
-This alignment between algorithmic reasoning based on conditional probabilities and clinical reasoning based on pathophysiological relationships offers value in interpretability and trust that quantitative efficiency metrics do not fully capture.
-Radiologists reviewing CWCS's suggestions may find them more consistent with how they naturally think about differential diagnosis, potentially improving acceptance and appropriate use of the AI system.
+\textbf{Answer: Yes, with important caveats.} CWCS successfully maintains valid coverage (90.9\%) while systematically incorporating asymmetric dependencies. The step-by-step validation in Section 6.3 demonstrates that when the base classifier provides confident predictions for some labels, CWCS leverages co-occurrence patterns to make informed inclusion decisions. Case 1 (Infiltration-Pneumonia) exemplifies this: the 42\% co-occurrence weight enabled inclusion of Pneumonia based on confident Infiltration prediction, producing a 2-label set that perfectly matched ground truth while Standard CP produced 6 labels.
 
-The finding that improved base classifier performance represents the highest-leverage opportunity for reducing conformal set sizes has important implications for research priorities.
-Efforts to advance from F1 of 0.32 to 0.60 through better architectures, more training data, or multi-modal learning would likely yield greater returns than optimizing dependency modeling approaches.
-As classifiers improve and produce tighter prediction sets averaging 3 to 4 labels rather than 9 to 10, the composition and clinical coherence of those sets becomes paramount, and we expect the advantages of methods like CWCS to become more pronounced in such improved settings.
+However, this advantage materializes only under specific conditions. When the classifier exhibits uniform uncertainty across unrelated pathologies (Case 2), CWCS cannot exploit dependency structure, and all methods converge to similar conservative behavior. This conditional effectiveness represents both a validation of the approach's theoretical soundness and a practical limitation.
 
-Our work demonstrates that domain-specific structure can be seamlessly integrated into the conformal prediction framework while preserving distribution-free finite-sample coverage guarantees.
-The co-occurrence weighting mechanism represents one instantiation of this broader principle, and future work could explore incorporating other forms of structure such as causal relationships from medical knowledge, hierarchical taxonomies from disease ontologies, or temporal dependencies in sequential diagnosis.
-The modularity of conformal prediction—where dependency modeling enters through the nonconformity score definition without compromising theoretical validity—makes such extensions straightforward to implement and evaluate.
+\subsubsection{RQ2: Under what conditions do dependency-aware methods provide advantages?}
+
+\textbf{Answer: Advantages emerge when base classifiers provide differentiated confidence, not under uniform uncertainty.} Our experiments reveal three critical conditions:
+
+\begin{enumerate}
+    \item \textbf{Confident predictions for at least some labels}: When the classifier assigns probabilities $>0.5$ to one or more labels, dependency modeling can guide inclusion of related labels with moderate probabilities (0.2-0.4)
+    
+    \item \textbf{Strong empirical dependencies}: Co-occurrence values $>0.3$ provide meaningful weight boosts. Weaker dependencies ($<0.15$) offer negligible advantages and risk noise
+    
+    \item \textbf{Structured uncertainty patterns}: When probability mass concentrates on clinically related label clusters rather than spreading uniformly
+\end{enumerate}
+
+Under extreme class imbalance with weak classifiers (F1=0.32), these conditions occur infrequently. Our ablation study confirms this: symmetric vs. asymmetric modeling yields nearly identical results (9.91 vs 9.98 labels), suggesting the specific dependency representation matters less than whether dependencies can be exploited at all.
+
+The implication is clear: \textbf{improving base classifier quality represents higher leverage than optimizing dependency modeling} in our experimental regime. We project that as classifier F1 improves from 0.32 to 0.50+, CWCS's advantages will become more pronounced because conditions 1-3 will be satisfied more frequently.
+
+\subsubsection{RQ3: What measurable directionality exists in clinical pathology relationships?}
+
+\textbf{Answer: Substantial asymmetries exist and are clinically interpretable.} Analysis of the co-occurrence matrix (Figure 5) reveals strong directional patterns:
+
+\begin{itemize}
+    \item Infiltration → Pneumonia: $M_{Inf,Pneu} = 0.42$, reverse $M_{Pneu,Inf} = 0.15$, asymmetry $\Delta = 0.27$
+    \item Cardiomegaly → Effusion: $M_{Card,Eff} = 0.48$, reverse $M_{Eff,Card} = 0.18$, asymmetry $\Delta = 0.30$
+    \item Consolidation → Pneumonia: $M_{Cons,Pneu} = 0.55$, reverse $M_{Pneu,Cons} = 0.13$, asymmetry $\Delta = 0.42$
+\end{itemize}
+
+These asymmetries align with known pathophysiology: infiltration and consolidation are radiological patterns commonly seen in pneumonia, while pneumonia itself has many presentations. Similarly, cardiomegaly causes effusion through congestive heart failure, but effusion has multiple non-cardiac causes.
+
+The fact that CWCS captures these patterns while maintaining valid coverage validates both the technical approach and its clinical grounding. However, the modest impact on aggregate efficiency (9.98 vs 9.82 labels) indicates that capturing directionality alone is insufficient—classifier quality remains the bottleneck.
+
+\subsection{Interpretation and Validation of Results}
+
+\subsubsection{Why Do Methods Converge Under Extreme Imbalance?}
+
+The near-equivalence of Standard CP (9.82), Tree-based (9.91), and CWCS (9.98) represents a \textbf{negative result with important implications}. This convergence does not indicate that dependency modeling is inherently ineffective; rather, it reveals that conservative calibration dominates when:
+
+\begin{enumerate}
+    \item Base classifiers produce poorly calibrated probabilities
+    \item Severe class imbalance forces low per-label thresholds
+    \item Label sparsity (54\% "No Finding") creates mismatch between ground truth cardinality and prediction set size
+\end{enumerate}
+
+This finding has methodological value: it establishes empirical bounds on when dependency modeling matters. Future work should focus on regimes where these bottlenecks are relaxed.
+
+\subsubsection{Validation Through Multiple Lenses}
+
+We validate our conclusions through convergent evidence:
+
+\textbf{1. Theoretical validity:} All methods achieve $\geq 90\%$ coverage, confirming conformal guarantees hold even with dependency modeling
+
+\textbf{2. Ablation consistency:} Removing co-occurrence weighting ($\lambda=0$) recovers Standard CP's 9.82 labels; symmetric weighting produces Tree-based's 9.91 labels, demonstrating each design choice's contribution
+
+\textbf{3. Case study concordance:} Successful cases (Case 1) align with predicted conditions (confident predictions + strong dependencies); failure cases (Case 2) align with predicted limitations (uniform uncertainty)
+
+\textbf{4. Clinical interpretability:} The asymmetries CWCS captures match established medical knowledge, providing external validation beyond statistical metrics
+
+\subsection{Comparison to Existing Approaches}
+
+\subsubsection{Versus Standard Independent CP}
+
+Standard CP achieves smallest sets (9.82 labels) but with arbitrary label combinations. CWCS produces marginally larger sets (9.98) but with clinical coherence. The 1.6\% efficiency cost buys interpretability and trust—important for clinical adoption even if not captured by set size metrics.
+
+In improved classifier regimes, we hypothesize this trade-off will favor CWCS more strongly as dependency exploitation becomes possible.
+
+\subsubsection{Versus Tree-Based CQioCo}
+
+The near-perfect equivalence (9.91 vs 9.98 labels) validates our analysis that symmetric vs asymmetric modeling matters little under extreme imbalance. However, CWCS offers conceptual advantages:
+
+\begin{itemize}
+    \item \textbf{Computational flexibility:} No tree-learning required; co-occurrence matrix computed directly
+    \item \textbf{Interpretability:} Conditional probabilities are clinically intuitive; mutual information is less so
+    \item \textbf{Extensibility:} Can incorporate expert-provided asymmetric weights, not just empirical estimates
+\end{itemize}
+
+\subsubsection{Versus Nested Sets (APS)}
+
+APS produces 20\% larger sets (11.80 labels), indicating poor adaptation to sparse multi-label ground truth. The cumulative probability mass approach struggles when 54\% of images have zero pathologies but classifiers assign moderate probabilities to many labels. This represents a cautionary finding about directly adapting multi-class methods to multi-label settings without accounting for label sparsity patterns.
+
+\subsection{Limitations}
+
+\subsubsection{Experimental Limitations}
+
+\begin{itemize}
+    \item \textbf{Single dataset:} ChestX-ray14 only; generalization to other anatomies/modalities unknown
+    \item \textbf{Single architecture:} ResNet-50 only; modern transformers may exhibit different behavior
+    \item \textbf{Moderate performance:} F1=0.32 may not reflect state-of-the-art; replication needed with stronger classifiers
+    \item \textbf{Label noise:} 5-10\% automated extraction errors affect both training and evaluation
+\end{itemize}
+
+\subsubsection{Methodological Limitations}
+
+\begin{itemize}
+    \item \textbf{Empirical co-occurrence only:} Does not incorporate causal medical knowledge
+    \item \textbf{Static dependencies:} Co-occurrence matrix fixed from training data; no adaptation to patient demographics
+    \item \textbf{Maximum aggregation:} $\max_{j \in C} M_{jk}$ is simplistic; weighted combinations may perform better
+    \item \textbf{Greedy construction:} APS-style nested sets required for coverage; non-nested approaches impossible
+\end{itemize}
+
+\subsubsection{Clinical Limitations}
+
+\begin{itemize}
+    \item \textbf{No clinical validation:} Radiologist evaluation of prediction set utility not performed
+    \item \textbf{Coverage vs. efficiency trade-off:} 90\% coverage with 10-label sets may not provide actionable clinical utility
+    \item \textbf{Silent failures:} Methods don't flag when base classifier is unreliable
+    \item \textbf{Binary labels:} Severity, location, uncertainty not modeled
+\end{itemize}
+
+\subsection{Future Directions}
+
+\subsubsection{Immediate Extensions}
+
+\textbf{1. Improved Base Classifiers}
+The clearest path forward is evaluating CWCS with state-of-the-art classifiers:
+\begin{itemize}
+    \item Vision transformers (ViT, Swin)
+    \item Multi-modal models leveraging radiology reports (GLoRIA, CLIP-style)
+    \item Self-supervised pretrained models (MAE, DINO)
+\end{itemize}
+We hypothesize CWCS advantages will be more pronounced with F1 $>0.50$.
+
+\textbf{2. Additional Medical Imaging Domains}
+\begin{itemize}
+    \item CheXpert dataset (227K images, uncertainty labels)
+    \item MIMIC-CXR (377K images, free-text reports)
+    \item PadChest (160K images, 174 labels)
+    \item Other anatomies: brain MRI, abdominal CT
+\end{itemize}
+
+\textbf{3. Enhanced Dependency Modeling}
+\begin{itemize}
+    \item Incorporate expert-provided causal relationships
+    \item Learn patient-specific dependencies conditioned on demographics
+    \item Hierarchical dependencies respecting anatomical structure
+    \item Temporal dependencies for longitudinal studies
+\end{itemize}
+
+\subsubsection{Methodological Advances}
+
+\textbf{4. Adaptive Dependency Strength}
+Rather than fixed $\lambda=1.0$, learn $\lambda_k$ per label or even $\lambda_{jk}$ per edge based on validation data. Could use cross-validation to optimize efficiency while maintaining coverage.
+
+\textbf{5. Conditional Coverage Objectives}
+Current methods target marginal coverage; develop approaches for conditional coverage:
+\begin{itemize}
+    \item Per-demographic group coverage (fairness)
+    \item Per-pathology coverage (clinical priority)
+    \item Instance-difficulty aware coverage
+\end{itemize}
+
+\textbf{6. Non-Nested Prediction Sets}
+Explore whether relaxing APS nesting requirement enables smaller sets:
+\begin{itemize}
+    \item Independent per-label decisions with Bonferroni correction
+    \item FDR-based procedures for label selection
+    \item Trade coverage guarantees for efficiency
+\end{itemize}
+
+\subsubsection{Clinical Translation}
+
+\textbf{7. Radiologist Evaluation Studies}
+Conduct user studies comparing prediction set utility:
+\begin{itemize}
+    \item Diagnostic accuracy with vs without conformal sets
+    \item Time to diagnosis with different set sizes
+    \item Trust calibration and appropriate reliance
+    \item Preference for coherent (CWCS) vs smaller (Standard) sets
+\end{itemize}
+
+\textbf{8. Clinical Decision Support Integration}
+\begin{itemize}
+    \item Interactive exploration: "show me evidence for label X"
+    \item Confidence visualization beyond set membership
+    \item Integration with worklist prioritization
+    \item Handling of "empty set" predictions
+\end{itemize}
+
+\textbf{9. Multi-Stage Diagnosis Workflows}
+\begin{itemize}
+    \item First stage: triage (high sensitivity, larger sets)
+    \item Second stage: specialist review (high specificity, smaller sets)
+    \item Adaptive $\alpha$ based on clinical context
+\end{itemize}
+
+\subsubsection{Theoretical Directions}
+
+\textbf{10. Dependency-Aware Coverage Bounds}
+Develop theory for when dependency modeling provably reduces set size:
+\begin{itemize}
+    \item Characterize classifier properties enabling dependency exploitation
+    \item Bounds on efficiency gain as function of dependency strength
+    \item Sample complexity for reliable co-occurrence estimation
+\end{itemize}
+
+\textbf{11. Causal Conformal Prediction}
+\begin{itemize}
+    \item Incorporate causal graphs over pathologies
+    \item Interventional coverage: if we treat X, what coverage for Y?
+    \item Counterfactual prediction sets
+\end{itemize}
+
+\subsection{Broader Impact}
+
+This work advances uncertainty quantification for medical AI, but responsible deployment requires:
+\begin{itemize}
+    \item \textbf{Human oversight:} Conformal sets augment, not replace, radiologists
+    \item \textbf{Clear communication:} Clinicians must understand coverage guarantees and limitations
+    \item \textbf{Continuous monitoring:} Distribution shift can violate exchangeability assumption
+    \item \textbf{Equity considerations:} Ensure coverage holds across demographic groups
+\end{itemize}

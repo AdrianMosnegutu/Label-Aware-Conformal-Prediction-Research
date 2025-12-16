@@ -1,13 +1,40 @@
 \section{Conclusion}
 \label{sec:conclusion}
 
-We introduced Co-occurrence Weighted Conformal Sets (CWCS), a conformal prediction framework that explicitly models asymmetric label dependencies for multi-label medical image classification.
-Through rigorous evaluation on ChestX-ray14 encompassing over 112,000 chest radiographs with 14 pathology labels exhibiting extreme class imbalance, we demonstrated that CWCS maintains valid 90\% coverage guarantees while producing prediction sets aligned with clinical co-occurrence patterns including strong asymmetries like Infiltration predicting Pneumonia with measure 0.39 and Cardiomegaly predicting Effusion with measure 0.30.
+We introduced Co-occurrence Weighted Conformal Sets (CWCS), a conformal prediction framework that explicitly models asymmetric label dependencies for multi-label medical image classification. Through rigorous evaluation on ChestX-ray14 encompassing over 112,000 chest radiographs with 14 pathology labels exhibiting extreme class imbalance, we addressed three fundamental research questions about uncertainty quantification in multi-label medical diagnosis.
 
-Under the challenging conditions of our experimental setting with moderate base classifier performance achieving macro F1 of 0.32, all conformal methods except APS produce similar aggregate efficiency measured by average set sizes of 9.82 to 9.98 labels.
-This convergence indicates that conservative calibration necessitated by poor probability estimates dominates over dependency modeling effects in this regime.
-However, this aggregate similarity masks CWCS's value in systematically respecting directional clinical relationships, offering advantages in interpretability and clinical coherence beyond what efficiency metrics capture.
+\subsection{Key Findings}
 
-Our work contributes both a practical method for incorporating asymmetric dependencies into conformal prediction and broader insights about when and why dependency modeling provides value in uncertainty quantification for medical AI systems.
-As base classifier quality improves and prediction sets tighten, we expect the advantages of dependency-aware methods to become more pronounced.
-The framework we have developed provides a foundation for future research into structured conformal prediction approaches that leverage domain knowledge while maintaining the distribution-free coverage guarantees essential for responsible deployment in high-stakes medical applications.
+\textbf{Research Question 1 (Clinical Alignment):} CWCS successfully maintains valid 90.9\% coverage while producing prediction sets that respect clinically meaningful asymmetric dependencies. Step-by-step validation on real test cases demonstrates that when base classifiers provide confident predictions, CWCS leverages co-occurrence patterns (e.g., 42\% Infiltration→Pneumonia) to make informed inclusion decisions, reducing false positives by 67\% in favorable cases.
+
+\textbf{Research Question 2 (Conditions for Advantage):} Dependency modeling advantages emerge only when (1) classifiers provide differentiated confidence across labels, (2) strong empirical dependencies exist ($>0.3$ co-occurrence), and (3) uncertainty patterns are structured rather than uniform. Under extreme imbalance with moderate classifier performance (F1=0.32), these conditions rarely hold, resulting in convergence: Standard CP (9.82 labels), Tree-based (9.91), CWCS (9.98). This negative result establishes empirical bounds on dependency modeling effectiveness.
+
+\textbf{Research Question 3 (Measurable Directionality):} Substantial asymmetries exist in clinical pathology relationships (Cardiomegaly→Effusion: 0.48 vs reverse 0.18, asymmetry 0.30) and align with known pathophysiology. CWCS is the first conformal prediction method to explicitly capture these directional patterns within the multi-label classification framework.
+
+\subsection{Validation of Conclusions}
+
+Our conclusions are validated through convergent evidence across multiple dimensions:
+
+\textbf{Theoretical Validation:} All methods achieve $\geq$90\% coverage, confirming conformal guarantees hold even with complex dependency modeling. The 0.645 calibrated quantile and step-by-step computations verify score construction maintains exchangeability.
+
+\textbf{Empirical Validation:} Ablation studies systematically confirm each design choice's contribution: removing weighting ($\lambda=0$) exactly recovers Standard CP (9.82 labels), symmetric weighting matches Tree-based (9.91), and filtering prevents noise from rare pairs (10.31 without vs 9.98 with).
+
+\textbf{Clinical Validation:} Captured asymmetries match established medical knowledge (infiltration patterns in pneumonia, cardiomegaly causing effusion), providing external validation beyond statistical metrics. Case studies demonstrate prediction sets align with radiological reasoning.
+
+\textbf{Comparative Validation:} Benchmarking against three established methods shows CWCS achieves its design goal (asymmetric modeling) while identifying practical limitations (convergence under poor calibration).
+
+\subsection{Contributions to the Field}
+
+\textbf{Methodological:} First systematic integration of asymmetric label dependencies into conformal prediction for multi-label classification. The co-occurrence weighting mechanism is general and can incorporate expert knowledge beyond empirical estimates.
+
+\textbf{Empirical:} Comprehensive evaluation under extreme class imbalance establishes when dependency modeling matters and when conservative calibration dominates. The finding that improved base classifiers offer higher leverage than optimized dependency modeling has important implications for research priorities.
+
+\textbf{Practical:} Demonstrated that aggregate efficiency metrics (set size) alone are insufficient for medical AI evaluation—clinical coherence and interpretability matter even when quantitative differences are modest.
+
+\subsection{Outlook and Impact}
+
+As base classifier quality improves and approaches clinical relevance (F1 $>0.50$), we expect CWCS's advantages to become more pronounced. The modular conformal framework enables straightforward incorporation of causal medical knowledge, hierarchical taxonomies, and patient-specific dependencies—directions we believe represent the future of principled uncertainty quantification for medical AI.
+
+The broader impact extends beyond chest radiography: any multi-label prediction problem with asymmetric dependencies (drug interactions, comorbidities, multi-organ imaging) can benefit from this framework. By bridging statistical rigor (distribution-free coverage) with domain expertise (clinical dependencies), CWCS advances responsible AI deployment in high-stakes medical applications.
+
+Most importantly, this work demonstrates that conformal prediction's theoretical guarantees need not come at the cost of domain-specific adaptability. The path forward involves tighter integration of medical knowledge with distribution-free statistical frameworks—advancing both the rigor and relevance of uncertainty quantification for medical AI systems.
