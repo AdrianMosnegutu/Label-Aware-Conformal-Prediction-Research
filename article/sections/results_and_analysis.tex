@@ -25,7 +25,7 @@ CWCS (Ours) & 9.98 & 0.909 \\
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\textwidth]{../results/figures/comparison_coverage}
+\includegraphics[width=\columnwidth]{../results/figures/comparison_coverage}
 \caption{Mean label coverage achieved by each conformal prediction method shown with the target 90\% threshold as a red dashed line. All methods exceed the target, with Standard CP at 90.7\%, Tree-based at 90.6\%, CWCS at 90.9\%, and APS highest at 93.0\%. The slight over-coverage relative to target reflects conservative quantile estimation from finite calibration samples and the discrete nature of prediction sets. APS's higher coverage corresponds to its substantially larger average set sizes.}
 \label{fig:comparison_coverage}
 \end{figure}
@@ -41,7 +41,7 @@ If the model assigns moderate probabilities to five or six unrelated pathologies
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\textwidth]{../results/figures/comparison_set_size}
+\includegraphics[width=\columnwidth]{../results/figures/comparison_set_size}
 \caption{Average prediction set size comparison showing Standard CP achieving the smallest sets at 9.82 labels, followed closely by Tree-based at 9.91 and CWCS at 9.98, while APS produces substantially larger sets at 11.80 labels. The modest differences between Standard, Tree-based, and CWCS (spanning only 0.16 labels) indicate that under severe imbalance with weak probability estimates, all methods require similarly conservative calibration. APS's 20\% larger sets stem from its cumulative probability mass approach struggling with sparse multi-label ground truth where most images have zero or one true pathology but the classifier spreads probability across many labels.}
 \label{fig:comparison_setsize}
 \end{figure}
@@ -53,12 +53,12 @@ The greedy nesting property means that once we start including labels to accumul
 \subsection{Per-Label Coverage Analysis}
 \label{subsec:per-label-coverage-analysis}
 
-\begin{figure}[H]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=\textwidth]{../results/figures/comparison_per_label}
 \caption{Per-label coverage rates achieved by each method across all 14 thoracic pathologies, with the 90\% target shown as a black dashed line. Common pathologies like Infiltration, Effusion, and Atelectasis consistently achieve 90 to 96\% coverage across all methods, benefiting from abundant calibration samples for precise quantile estimation. Rare labels show more variability: Edema (2.1\% prevalence) achieves only 77 to 87\% coverage across methods, falling short of the 90\% target due to insufficient calibration samples (approximately 230 positive instances). Hernia (0.2\% prevalence) paradoxically achieves near-perfect coverage across all methods because the classifier rarely predicts it with high confidence, and conservative thresholds ensure inclusion whenever it appears. The relatively small variance across methods for most labels (typically 2 to 5 percentage points) indicates that choice of conformal method has modest impact on individual label guarantees compared to fundamental challenges from class imbalance.}
 \label{fig:label_coverage}
-\end{figure}
+\end{figure*}
 
 Figure~\ref{fig:label_coverage} reveals that coverage performance varies substantially across pathology classes in patterns that correlate with label prevalence.
 For common pathologies like Infiltration at 17.7\% prevalence, Effusion at 11.9\%, and Atelectasis at 10.3\%, all methods achieve stable coverage in the 90 to 96\% range, hovering close to the target 90\% threshold.
@@ -82,9 +82,9 @@ To concretely illustrate how CWCS operates on real data, we present detailed wal
 
 \subsubsection{Case 1: Successful Asymmetric Dependency Exploitation}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{/Users/ADRIAN/.cache/kagglehub/datasets/nih-chest-xrays/data/versions/3/images_012/images/00028734_000.png}
+    \includegraphics[width=\columnwidth]{../results/figures/case1_infiltration_pneumonia}
     \caption{Patient ID 28734, Image ID 00028734\_000.png from the test set.}
     \label{fig:image_label}
 \end{figure}
@@ -121,7 +121,7 @@ Nodule & 0.051 \\
     \item Effusion (0.134 $>$ 0.11): \textbf{Included}
     \item Edema (0.098 $>$ 0.05): \textbf{Included}
 \end{itemize}
-Standard CP produces: $C_{\text{Standard}} = \{\text{Infiltration, Pneumonia, Consolidation, Atelectasis, Effusion, Edema}\}$ with 6 labels total.
+Standard CP produces $C_{\text{Standard}}$ containing Infiltration, Pneumonia, Consolidation, Atelectasis, Effusion, and Edema---6 labels total.
 
 \paragraph{CWCS Step-by-Step Computation.} Following Algorithm 2, we process labels in descending probability order:
 
@@ -164,9 +164,9 @@ s_{\text{Cons}} &= 1 - 0.241 \times 1.26 = 1 - 0.304 = 0.696 \\
 
 \subsubsection{Case 2: Uniform Uncertainty Scenario}
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{/Users/ADRIAN/.cache/kagglehub/datasets/nih-chest-xrays/data/versions/3/images_006/images/00012458_000.png}
+    \includegraphics[width=\columnwidth]{../results/figures/case2_atelectasis}
     \caption{Patient ID 12458, Image ID 00012458\_000.png from the test set.}
     \label{fig:image_label_2}
 \end{figure}
@@ -247,17 +247,19 @@ To systematically assess which design choices contribute to CWCS's performance, 
 \centering
 \caption{Ablation study examining the impact of different CWCS design choices. The full CWCS configuration uses asymmetric co-occurrence weighting with strength $\lambda=1.0$ and filters weak edges below threshold 0.10. Removing filtering increases set size by 3.3\% due to noise from spurious correlations for rare pairs. Reducing weighting strength to $\lambda=0.5$ yields performance between CWCS and Standard CP. Using symmetric co-occurrence produces results nearly identical to Tree-based CQioC at 9.91 labels, confirming both methods essentially model symmetric pairwise dependencies. The full range spans only 5\% from 9.82 to 10.31 labels, indicating modest impact of dependency modeling under extreme imbalance with weak classifiers.}
 \label{tab:ablation}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcc}
 \toprule
 \textbf{Configuration} & \textbf{Avg Set Size} & \textbf{Coverage} \\
 \midrule
-CWCS full ($\lambda=1.0$, threshold=0.10) & 9.98 & 0.909 \\
+CWCS full ($\lambda=1.0$, thresh.=0.10) & 9.98 & 0.909 \\
 Without filtering (all edges) & 10.31 & 0.908 \\
 Reduced strength ($\lambda=0.5$) & 9.89 & 0.908 \\
 Symmetric co-occurrence & 9.91 & 0.906 \\
 No weighting ($\lambda=0$) & 9.82 & 0.907 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Removing the co-occurrence filtering threshold by including all label pairs regardless of how weak their empirical co-occurrence increases the average set size from 9.98 to 10.31 labels, a degradation of 3.3\%.

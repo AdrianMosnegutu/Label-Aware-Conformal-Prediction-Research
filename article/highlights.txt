@@ -1,0 +1,8 @@
+Highlights
+
+- Novel conformal prediction method modeling asymmetric label dependencies
+- Achieves 90.9% coverage with clinically coherent prediction sets
+- Captures directional disease relationships (e.g., infiltration to pneumonia)
+- Comprehensive benchmark on ChestX-ray14 with 112,120 chest radiographs
+- First integration of asymmetric dependencies in multi-label conformal prediction
+

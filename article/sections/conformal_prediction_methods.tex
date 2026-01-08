@@ -11,7 +11,7 @@ For a given label $j$, the nonconformity score for a calibration sample $(X_i, Y
 s_i^{(j)} = 1 - \hat{\pi}^{(j)}(X_i)\label{eq:equation5}
 \end{equation}
 
-This score is high when the model assigns low probability to the label, making it \("\)nonconforming\("\) or unusual.
+This score is high when the model assigns low probability to the label, making it ``nonconforming'' or unusual.
 Crucially, we only compute and store this score for calibration samples where the label is actually present, that is, where $Y_i^{(j)} = 1$.
 This ensures that our calibration quantile represents the threshold needed to achieve coverage on positive instances of each label.
 
@@ -31,7 +31,7 @@ The final prediction set is formed as:
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.65\textwidth]{../results/figures/standard_cp_thresholds}
+\includegraphics[width=\columnwidth]{../results/figures/standard_cp_thresholds}
 \caption{Calibrated probability thresholds for Standard CP across all 14 pathology labels. Most labels require very low thresholds ranging from 0.02 to 0.24, far below the conventional 0.5 decision boundary (shown as red dashed line). These low thresholds reflect the poor calibration of the base classifier under severe class imbalance. For instance, Infiltration requires a threshold of 0.24, meaning any test image where the classifier assigns Infiltration probability exceeding 24\% will have Infiltration included in its prediction set. When the classifier frequently assigns multiple labels probabilities in the 0.20 to 0.40 range simultaneously due to uncertainty, this leads to the large prediction sets observed in our experiments averaging nearly 10 labels per image.}
 \label{fig:standard_thresholds}
 \end{figure}
@@ -43,8 +43,8 @@ When applied independently across all 14 labels, this results in large predictio
 
 \subsection{Adaptive Prediction Sets (APS)}\label{subsec:adaptive-prediction-sets-(aps)}
 
-The Adaptive Prediction Sets approach, originally developed for multi-class classification by Romano et al. \cite{romano2020classification}, constructs prediction sets by ordering labels according to predicted probability and including labels sequentially until a calibrated threshold is exceeded.
-We adapt this method to the multi-label setting following the approach of Stutz et al.\cite{stutz2021learning}
+The Adaptive Prediction Sets approach, originally developed for multi-class classification by \citet{romano2020classification}, constructs prediction sets by ordering labels according to predicted probability and including labels sequentially until a calibrated threshold is exceeded.
+We adapt this method to the multi-label setting following the approach of \citet{stutz2021learning}.
 
 For a calibration sample $(X_i, Y_i)$, we first sort all labels in descending order of predicted probability, obtaining a permutation $\sigma_i$ where $\sigma_i(1)$ is the most confident label, $\sigma_i(2)$ is the second most confident, and so on.
 We then compute the cumulative sum of predicted probabilities in this sorted order.
@@ -72,24 +72,25 @@ This nesting property is important for maintaining valid coverage under the conf
 In practice, we find that APS produces substantially larger prediction sets than other methods in our experiments, averaging 11.80 labels per image compared to approximately 10 for other approaches.
 This behavior stems from how APS handles sparse multi-label ground truth.
 When the majority of images have zero or one true pathology, but the classifier's probability is spread across multiple labels due to uncertainty, the cumulative mass threshold becomes conservative to ensure coverage.
-The method effectively says \("\)include labels until you have accumulated enough probability mass to be confident that true labels are captured,\("\) and under poor calibration, this mass accumulation requires including many labels.
+The method effectively says ``include labels until you have accumulated enough probability mass to be confident that true labels are captured,'' and under poor calibration, this mass accumulation requires including many labels.
 
 \subsection{Tree-based Conformal Prediction with Chow-Liu Trees}\label{subsec:tree-based-conformal-prediction-with-chow-liu-trees}
 
 Tree-based conformal methods model label dependencies through a learned tree structure where nodes represent labels and edges represent dependencies.
-The Chow-Liu algorithm~\cite{chow1968approximating} finds the maximum spanning tree that best approximates the joint distribution of labels using pairwise mutual information as edge weights.
+The Chow-Liu algorithm \citep{chow1968approximating} finds the maximum spanning tree that best approximates the joint distribution of labels using pairwise mutual information as edge weights.
 For labels $j$ and $k$, the mutual information is:
 
-\begin{equation}
-I(Y^{(j)}; Y^{(k)}) = \sum_{y_j, y_k \in \{0,1\}} P(Y^{(j)}=y_j, Y^{(k)}=y_k) \log \frac{P(Y^{(j)}=y_j, Y^{(k)}=y_k)}{P(Y^{(j)}=y_j)P(Y^{(k)}=y_k)}\label{eq:equation10}
-\end{equation}
+\begin{multline}
+I(Y^{(j)}; Y^{(k)}) = \sum_{y_j, y_k \in \{0,1\}} P(Y^{(j)}=y_j, Y^{(k)}=y_k) \\
+\times \log \frac{P(Y^{(j)}=y_j, Y^{(k)}=y_k)}{P(Y^{(j)}=y_j)P(Y^{(k)}=y_k)}\label{eq:equation10}
+\end{multline}
 
 Mutual information quantifies how much knowing the value of one label reduces uncertainty about the other label.
 Importantly, mutual information is symmetric: $I(Y^{(j)}; Y^{(k)}) = I(Y^{(k)}; Y^{(j)})$, meaning the tree structure cannot represent directional dependencies.
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.65\textwidth]{../results/figures/chow_liu_tree}
+\includegraphics[width=\columnwidth]{../results/figures/chow_liu_tree}
 \caption{Chow-Liu dependency tree learned from training data using pairwise mutual information as edge weights. Infiltration naturally emerges as a central hub node connected to eight other pathologies including Consolidation, Atelectasis, Pneumothorax, Effusion, Pneumonia, Emphysema, Nodule, and Hernia. This hub structure reflects Infiltration's high prevalence (17.7\%) and its tendency to co-occur with many other conditions. However, the tree's undirected edges represent symmetric relationships and cannot capture the directional dependencies where infiltration strongly predicts pneumonia but not vice versa. The tree constraint forces dependencies to be acyclic, preventing representation of more complex dependency structures present in the full co-occurrence matrix.}
 \label{fig:chow_liu}
 \end{figure}
@@ -161,7 +162,7 @@ This transforms the nonconformity score from $s = 1 - 0.31 = 0.69$ to $s = 1 - 0
 
 CWCS constructs prediction sets iteratively using a greedy approach that respects the natural ordering by predicted probability while incorporating co-occurrence information. This ensures that prediction sets are nested (required for valid conformal coverage) while allowing asymmetric dependencies to influence inclusion decisions.
 
-\begin{algorithm}[H]
+\begin{algorithm*}[htbp]
 \caption{CWCS Calibration}
 \begin{algorithmic}[1]
 \Require Calibration set $\{(X_i, Y_i)\}_{i=1}^{n_{\text{cal}}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, parameters $\alpha, \lambda$
@@ -184,9 +185,9 @@ CWCS constructs prediction sets iteratively using a greedy approach that respect
 \State $\hat{q} \leftarrow \text{Quantile}(S \cup \{\infty\}, 1-\alpha)$
 \State \Return $\hat{q}$
 \end{algorithmic}
-\end{algorithm}
+\end{algorithm*}
 
-\begin{algorithm}[H]
+\begin{algorithm*}[htbp]
 \caption{CWCS Prediction}
 \begin{algorithmic}[1]
 \Require Test image $X_{\text{test}}$, classifier $\hat{\pi}$, co-occurrence matrix $\mathbf{M}$, quantile $\hat{q}$, parameter $\lambda$
@@ -205,7 +206,7 @@ CWCS constructs prediction sets iteratively using a greedy approach that respect
 \EndFor
 \State \Return $C$
 \end{algorithmic}
-\end{algorithm}
+\end{algorithm*}
 
 \subsubsection{Theoretical Guarantees}
 
@@ -223,9 +224,9 @@ CWCS differs from existing methods in several key aspects:
 \begin{itemize}
 \item \textbf{vs. Standard CP}: Unlike independent label-wise calibration, CWCS leverages inter-label dependencies to produce more coherent prediction sets that respect clinical relationships.
 
-\item \textbf{vs. Tree-based methods} (CQioCo): While tree-based approaches model pairwise dependencies, they use mutual information which is inherently symmetric: $I(Y^{(j)}; Y^{(k)}) = I(Y^{(k)}; Y^{(j)})$. CWCS uses conditional probabilities $M_{jk} \neq M_{kj}$, capturing directional relationships like "infiltration predicts pneumonia more strongly than pneumonia predicts infiltration."
+\item \textbf{vs. Tree-based methods} (CQioC): While tree-based approaches model pairwise dependencies, they use mutual information which is inherently symmetric: $I(Y^{(j)}; Y^{(k)}) = I(Y^{(k)}; Y^{(j)})$. CWCS uses conditional probabilities $M_{jk} \neq M_{kj}$, capturing directional relationships like ``infiltration predicts pneumonia more strongly than pneumonia predicts infiltration.''
 
-\item \textbf{vs. Nested set methods} (CDioCo/APS): These methods order labels by confidence but do not explicitly model label dependencies. CWCS combines probability-based ordering with co-occurrence weighting, allowing clinical structure to inform inclusion decisions beyond mere predicted probability.
+\item \textbf{vs. Nested set methods} (CDioC/APS): These methods order labels by confidence but do not explicitly model label dependencies. CWCS combines probability-based ordering with co-occurrence weighting, allowing clinical structure to inform inclusion decisions beyond mere predicted probability.
 \end{itemize}
 
 The asymmetric dependency modeling represents the first systematic integration of directional clinical relationships into conformal prediction for multi-label medical imaging, addressing a gap identified in our literature review where no existing method explicitly captures asymmetric label dependencies within the conformal framework.

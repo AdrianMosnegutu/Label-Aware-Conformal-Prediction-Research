@@ -1,9 +1,6 @@
 \begin{abstract}
-    \begin{quotation}
-
-        Conformal prediction provides distribution-free coverage guarantees for uncertainty quantification in deep learning. However, existing multi-label conformal methods either treat labels independently or assume symmetric dependencies, failing to capture the asymmetric relationships between diseases in medical diagnosis.
-        We propose Co-occurrence Weighted Conformal Sets (CWCS), a novel conformal prediction method that models asymmetric label dependencies using empirical disease co-occurrence patterns. CWCS produces prediction sets that respect directional clinical relationships, such as infiltration predicting pneumonia more strongly than the reverse.
-        We benchmark CWCS against standard conformal prediction, nested sets, and tree-based methods on ChestX-ray14 (14 pathology labels, 112,120 images) using a ResNet-50 classifier. Under severe class imbalance (0.2\%–17.7\% prevalence), all methods achieve valid coverage and similar efficiency. However, CWCS uniquely captures clinically meaningful asymmetric dependencies with measurable directionality, advancing uncertainty quantification for multi-label medical imaging.
-        
-    \end{quotation}
+Conformal prediction provides distribution-free coverage guarantees for uncertainty quantification in deep learning. However, existing multi-label conformal methods either treat labels independently or assume symmetric dependencies, failing to capture the asymmetric relationships between diseases in medical diagnosis.
+We propose Co-occurrence Weighted Conformal Sets (CWCS), a novel conformal prediction method that models asymmetric label dependencies using empirical disease co-occurrence patterns. CWCS produces prediction sets that respect directional clinical relationships, such as infiltration predicting pneumonia more strongly than the reverse.
+We benchmark CWCS against standard conformal prediction, nested sets, and tree-based methods on ChestX-ray14 (14 pathology labels, 112,120 images) using a ResNet-50 classifier. Under severe class imbalance (0.2\%--17.7\% prevalence), all methods achieve valid coverage and similar efficiency. However, CWCS uniquely captures clinically meaningful asymmetric dependencies with measurable directionality, advancing uncertainty quantification for multi-label medical imaging.
 \end{abstract}
+

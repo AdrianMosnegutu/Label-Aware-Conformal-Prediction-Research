@@ -55,6 +55,7 @@ rm -f main.lot
 rm -f main.nav
 rm -f main.snm
 rm -f main.vrb
+rm -f main.spl
 
 # Remove latexmk-specific files
 rm -f main.synctex

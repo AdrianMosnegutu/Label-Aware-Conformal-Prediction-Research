@@ -1,44 +1,57 @@
-\documentclass[11pt,a4paper]{article}
+% Medical Image Analysis - Elsevier Journal Format
+% Using elsarticle class with preprint option for submission
+% Final published version uses two-column (5p option), but preprint is preferred for review
+
+% For Submission (Reviewers prefer this):
+% \documentclass[review, 12pt]{elsarticle}
+
+% For your own preview (Looks like the published paper):
+\documentclass[final, 5p, times, twocolumn, authoryear]{elsarticle}
 
 % Essential packages
 \usepackage[utf8]{inputenc}
-\usepackage[english, provide=*]{babel}
 \usepackage{amsmath,amssymb,amsthm}
 \usepackage{graphicx}
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
-\usepackage{geometry}
 \usepackage{amsfonts}
 \usepackage{amstext}
 \usepackage{amsopn}
-\usepackage[backend=biber, style=numeric, sorting=none]{biblatex}
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
+\usepackage{natbib}
 
-\babelprovide[import, onchar=ids fonts]{english}
-\geometry{margin=1in}
-\addbibresource{references.bib}
+% Line numbers for review (comment out for final version)
+\usepackage{lineno}
 
 % Theorem environments
 \newtheorem{definition}{Definition}
 \newtheorem{theorem}{Theorem}
 
-% Title information
-\title{\textbf{Co-occurrence Weighted Conformal Sets for Multi-Label Medical Image Classification}}
-\author{
-    \textbf{Mosnegutu Adrian-Ioan}\\
-    Faculty of Mathematics and Computer Science\\
-    \textit{Babes-Bolyai University}
-}
-\date{\today}
+% Journal name
+\journal{Medical Image Analysis}
 
 \begin{document}
 
-\maketitle
+\begin{frontmatter}
+
+\title{Co-occurrence Weighted Conformal Sets for Multi-Label Medical Image Classification}
+
+\author[bbu]{Adrian-Ioan Mosnegutu}
+\ead{adrian.mosnegutu@stud.ubbcluj.ro}
+
+\affiliation[bbu]{organization={Faculty of Mathematics and Computer Science, Babes-Bolyai University},
+            city={Cluj-Napoca},
+            country={Romania}}
 
 \input{sections/abstract}
-\input{sections/classification}
+\input{sections/keywords}
+
+\end{frontmatter}
+
+% Enable line numbers for review
+% \linenumbers
 
 \input{sections/introduction}
 \input{sections/related_work}
@@ -49,6 +62,9 @@
 \input{sections/discussion}
 \input{sections/conclusion}
 
-\printbibliography
+\input{sections/statements}
+
+\bibliographystyle{elsarticle-harv}
+\bibliography{references}
 
 \end{document}

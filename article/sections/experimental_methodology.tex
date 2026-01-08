@@ -13,19 +13,19 @@ The pathology labels were extracted from radiological reports through an automat
 It is important to note that this automated extraction process introduces some level of label noise, with previous studies estimating the accuracy at approximately 90 to 95 percent.
 This noise ceiling represents a fundamental limitation on achievable performance, but the large scale of the dataset makes it valuable for developing and evaluating multi-label classification methods despite this imperfection.
 
-\begin{figure}[H]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=\textwidth]{../results/figures/label_distribution}
-\caption{Label distribution characteristics of ChestX-ray14. The left panel shows pathology frequencies in the training set, revealing extreme class imbalance spanning two orders of magnitude from Hernia at 0.2\% prevalence to Infiltration at 17.7\%. The right panel displays the distribution of number of labels per image, demonstrating that the majority of images (54\%) are labeled as "No Finding" with zero pathologies, while most pathological cases present with one or two concurrent conditions. This sparsity pattern has important implications for conformal prediction, as methods must maintain coverage when ground truth contains zero or few labels while prediction sets may contain many labels.}
+\caption{Label distribution characteristics of ChestX-ray14. The left panel shows pathology frequencies in the training set, revealing extreme class imbalance spanning two orders of magnitude from Hernia at 0.2\% prevalence to Infiltration at 17.7\%. The right panel displays the distribution of number of labels per image, demonstrating that the majority of images (54\%) are labeled as ``No Finding'' with zero pathologies, while most pathological cases present with one or two concurrent conditions. This sparsity pattern has important implications for conformal prediction, as methods must maintain coverage when ground truth contains zero or few labels while prediction sets may contain many labels.}
 \label{fig:label_dist}
-\end{figure}
+\end{figure*}
 
 The class imbalance in this dataset is severe, which reflects both the natural prevalence of different conditions in the patient population and the challenges of detecting rare pathologies in automated label extraction.
 Figure~\ref{fig:label_dist} illustrates this distribution, showing that common conditions like Infiltration appear in nearly one out of every five images, while rare conditions like Hernia occur in fewer than one out of every 400 images.
 This 88-fold difference in prevalence creates fundamental challenges for both classifier training and conformal calibration, as rare classes have insufficient samples for precise probability estimation.
 
 Beyond individual label frequencies, the multi-label distribution reveals that most images are either normal or contain only one or two pathologies.
-Approximately 54\% of images in the dataset are labeled as \("\)No Finding,\("\) indicating no significant abnormalities detected.
+Approximately 54\% of images in the dataset are labeled as ``No Finding,'' indicating no significant abnormalities detected.
 Among pathological cases, the median number of concurrent conditions is one, with only about 6\% of images showing three or more simultaneous pathologies.
 This sparsity has important implications for evaluating conformal prediction methods: when the ground truth contains zero or one label but prediction sets contain nine or ten labels, this represents a substantial mismatch that we must carefully interpret.
 
@@ -53,7 +53,7 @@ Importantly, we do not apply any augmentation during validation, calibration, or
 \subsection{Base Classifier Architecture and Training}
 \label{subsec:base-classifier-architecture-and-training}
 
-We employ ResNet-50~\cite{he2016deep}, a widely-used convolutional neural network architecture, as our base classifier.
+We employ ResNet-50 \citep{he2016deep}, a widely-used convolutional neural network architecture, as our base classifier.
 ResNet-50 consists of 50 layers organized into four main blocks with residual connections that enable training of deep networks by mitigating vanishing gradient problems.
 We initialize the network with weights pretrained on ImageNet, leveraging transfer learning to benefit from features learned on natural images.
 The original classification head designed for 1000-way ImageNet classification is replaced with a custom head suitable for multi-label prediction consisting of a dropout layer with probability 0.5 for regularization followed by a linear layer projecting from 2048 features to 14 output logits.
@@ -71,12 +71,12 @@ We fine-tune these layers along with the classification head for an additional 1
 This two-phase strategy balances adaptation to our specific task with preservation of useful pretrained representations.
 We implement early stopping with patience of 5 epochs based on validation set macro-F1 score, although in our experiments the full 30 plus 10 epochs were typically needed before convergence.
 
-\begin{figure}[H]
+\begin{figure*}[htbp]
 \centering
 \includegraphics[width=\textwidth]{../results/figures/training_history}
 \caption{Training curves for the ResNet-50 base classifier over 30 epochs. The left panel shows training loss (blue) steadily decreasing from 0.80 to 0.49, while validation loss (orange) decreases initially but plateaus around 0.71 after epoch 20, with slight subsequent degradation indicating mild overfitting. The right panel displays validation macro-F1 score (green) progression, reaching a maximum of approximately 0.28 around epochs 22 through 25. The target F1 of 0.40 (red dashed line) is not achieved, reflecting fundamental challenges from extreme class imbalance where rare pathologies like Hernia have only 140 training examples and label noise from automated text extraction affecting 5 to 10 percent of annotations. This moderate performance (F1 equals 0.32 on test set) necessitates conservative conformal calibration regardless of dependency modeling approach.}
 \label{fig:training}
-\end{figure}
+\end{figure*}
 
 The base classifier achieves a macro-F1 score of 0.32 on the validation set and test set.
 While this performance may appear modest, it is important to understand this result in context.

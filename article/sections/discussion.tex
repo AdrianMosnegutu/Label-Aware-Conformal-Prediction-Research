@@ -5,7 +5,7 @@
 
 \subsubsection{RQ1: Can asymmetric dependency modeling produce clinically aligned prediction sets while maintaining coverage?}
 
-\textbf{Answer: Yes, with important caveats.} CWCS successfully maintains valid coverage (90.9\%) while systematically incorporating asymmetric dependencies. The step-by-step validation in Section 6.3 demonstrates that when the base classifier provides confident predictions for some labels, CWCS leverages co-occurrence patterns to make informed inclusion decisions. Case 1 (Infiltration-Pneumonia) exemplifies this: the 42\% co-occurrence weight enabled inclusion of Pneumonia based on confident Infiltration prediction, producing a 2-label set that perfectly matched ground truth while Standard CP produced 6 labels.
+\textbf{Answer: Yes, with important caveats.} CWCS successfully maintains valid coverage (90.9\%) while systematically incorporating asymmetric dependencies. The step-by-step validation in Section~\ref{sec:results-and-analysis} demonstrates that when the base classifier provides confident predictions for some labels, CWCS leverages co-occurrence patterns to make informed inclusion decisions. Case 1 (Infiltration-Pneumonia) exemplifies this: the 42\% co-occurrence weight enabled inclusion of Pneumonia based on confident Infiltration prediction, producing a 2-label set that perfectly matched ground truth while Standard CP produced 6 labels.
 
 However, this advantage materializes only under specific conditions. When the classifier exhibits uniform uncertainty across unrelated pathologies (Case 2), CWCS cannot exploit dependency structure, and all methods converge to similar conservative behavior. This conditional effectiveness represents both a validation of the approach's theoretical soundness and a practical limitation.
 
@@ -14,7 +14,7 @@ However, this advantage materializes only under specific conditions. When the cl
 \textbf{Answer: Advantages emerge when base classifiers provide differentiated confidence, not under uniform uncertainty.} Our experiments reveal three critical conditions:
 
 \begin{enumerate}
-    \item \textbf{Confident predictions for at least some labels}: When the classifier assigns probabilities $>0.5$ to one or more labels, dependency modeling can guide inclusion of related labels with moderate probabilities (0.2-0.4)
+    \item \textbf{Confident predictions for at least some labels}: When the classifier assigns probabilities $>0.5$ to one or more labels, dependency modeling can guide inclusion of related labels with moderate probabilities (0.2--0.4)
     
     \item \textbf{Strong empirical dependencies}: Co-occurrence values $>0.3$ provide meaningful weight boosts. Weaker dependencies ($<0.15$) offer negligible advantages and risk noise
     
@@ -23,21 +23,21 @@ However, this advantage materializes only under specific conditions. When the cl
 
 Under extreme class imbalance with weak classifiers (F1=0.32), these conditions occur infrequently. Our ablation study confirms this: symmetric vs. asymmetric modeling yields nearly identical results (9.91 vs 9.98 labels), suggesting the specific dependency representation matters less than whether dependencies can be exploited at all.
 
-The implication is clear: \textbf{improving base classifier quality represents higher leverage than optimizing dependency modeling} in our experimental regime. We project that as classifier F1 improves from 0.32 to 0.50+, CWCS's advantages will become more pronounced because conditions 1-3 will be satisfied more frequently.
+The implication is clear: \textbf{improving base classifier quality represents higher leverage than optimizing dependency modeling} in our experimental regime. We project that as classifier F1 improves from 0.32 to 0.50+, CWCS's advantages will become more pronounced because conditions 1--3 will be satisfied more frequently.
 
 \subsubsection{RQ3: What measurable directionality exists in clinical pathology relationships?}
 
-\textbf{Answer: Substantial asymmetries exist and are clinically interpretable.} Analysis of the co-occurrence matrix (Figure 5) reveals strong directional patterns:
+\textbf{Answer: Substantial asymmetries exist and are clinically interpretable.} Analysis of the co-occurrence matrix reveals strong directional patterns:
 
 \begin{itemize}
-    \item Infiltration → Pneumonia: $M_{Inf,Pneu} = 0.42$, reverse $M_{Pneu,Inf} = 0.15$, asymmetry $\Delta = 0.27$
-    \item Cardiomegaly → Effusion: $M_{Card,Eff} = 0.48$, reverse $M_{Eff,Card} = 0.18$, asymmetry $\Delta = 0.30$
-    \item Consolidation → Pneumonia: $M_{Cons,Pneu} = 0.55$, reverse $M_{Pneu,Cons} = 0.13$, asymmetry $\Delta = 0.42$
+    \item Infiltration $\rightarrow$ Pneumonia: $M_{Inf,Pneu} = 0.42$, reverse $M_{Pneu,Inf} = 0.15$, asymmetry $\Delta = 0.27$
+    \item Cardiomegaly $\rightarrow$ Effusion: $M_{Card,Eff} = 0.48$, reverse $M_{Eff,Card} = 0.18$, asymmetry $\Delta = 0.30$
+    \item Consolidation $\rightarrow$ Pneumonia: $M_{Cons,Pneu} = 0.55$, reverse $M_{Pneu,Cons} = 0.13$, asymmetry $\Delta = 0.42$
 \end{itemize}
 
 These asymmetries align with known pathophysiology: infiltration and consolidation are radiological patterns commonly seen in pneumonia, while pneumonia itself has many presentations. Similarly, cardiomegaly causes effusion through congestive heart failure, but effusion has multiple non-cardiac causes.
 
-The fact that CWCS captures these patterns while maintaining valid coverage validates both the technical approach and its clinical grounding. However, the modest impact on aggregate efficiency (9.98 vs 9.82 labels) indicates that capturing directionality alone is insufficient—classifier quality remains the bottleneck.
+The fact that CWCS captures these patterns while maintaining valid coverage validates both the technical approach and its clinical grounding. However, the modest impact on aggregate efficiency (9.98 vs 9.82 labels) indicates that capturing directionality alone is insufficient---classifier quality remains the bottleneck.
 
 \subsection{Interpretation and Validation of Results}
 
@@ -48,7 +48,7 @@ The near-equivalence of Standard CP (9.82), Tree-based (9.91), and CWCS (9.98) r
 \begin{enumerate}
     \item Base classifiers produce poorly calibrated probabilities
     \item Severe class imbalance forces low per-label thresholds
-    \item Label sparsity (54\% "No Finding") creates mismatch between ground truth cardinality and prediction set size
+    \item Label sparsity (54\% ``No Finding'') creates mismatch between ground truth cardinality and prediction set size
 \end{enumerate}
 
 This finding has methodological value: it establishes empirical bounds on when dependency modeling matters. Future work should focus on regimes where these bottlenecks are relaxed.
@@ -69,7 +69,7 @@ We validate our conclusions through convergent evidence:
 
 \subsubsection{Versus Standard Independent CP}
 
-Standard CP achieves smallest sets (9.82 labels) but with arbitrary label combinations. CWCS produces marginally larger sets (9.98) but with clinical coherence. The 1.6\% efficiency cost buys interpretability and trust—important for clinical adoption even if not captured by set size metrics.
+Standard CP achieves smallest sets (9.82 labels) but with arbitrary label combinations. CWCS produces marginally larger sets (9.98) but with clinical coherence. The 1.6\% efficiency cost buys interpretability and trust---important for clinical adoption even if not captured by set size metrics.
 
 In improved classifier regimes, we hypothesize this trade-off will favor CWCS more strongly as dependency exploitation becomes possible.
 
@@ -95,7 +95,7 @@ APS produces 20\% larger sets (11.80 labels), indicating poor adaptation to spar
     \item \textbf{Single dataset:} ChestX-ray14 only; generalization to other anatomies/modalities unknown
     \item \textbf{Single architecture:} ResNet-50 only; modern transformers may exhibit different behavior
     \item \textbf{Moderate performance:} F1=0.32 may not reflect state-of-the-art; replication needed with stronger classifiers
-    \item \textbf{Label noise:} 5-10\% automated extraction errors affect both training and evaluation
+    \item \textbf{Label noise:} 5--10\% automated extraction errors affect both training and evaluation
 \end{itemize}
 
 \subsubsection{Methodological Limitations}
@@ -179,10 +179,10 @@ Conduct user studies comparing prediction set utility:
 
 \textbf{8. Clinical Decision Support Integration}
 \begin{itemize}
-    \item Interactive exploration: "show me evidence for label X"
+    \item Interactive exploration: ``show me evidence for label X''
     \item Confidence visualization beyond set membership
     \item Integration with worklist prioritization
-    \item Handling of "empty set" predictions
+    \item Handling of ``empty set'' predictions
 \end{itemize}
 
 \textbf{9. Multi-Stage Diagnosis Workflows}
