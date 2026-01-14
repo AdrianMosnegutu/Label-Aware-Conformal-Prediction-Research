@@ -21,6 +21,7 @@
 \usepackage{amsopn}
 \usepackage[colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue]{hyperref}
 \usepackage{natbib}
+\usepackage{fancyhdr}
 
 % Line numbers for review (comment out for final version)
 \usepackage{lineno}
@@ -31,6 +32,10 @@
 
 % Journal name
 \journal{Medical Image Analysis}
+
+% Store journal name and publisher for header (since \journal might not expand in fancyhdr)
+\newcommand{\journalname}{Medical Image Analysis}
+\newcommand{\journalpublisher}{Elsevier}
 
 \begin{document}
 
@@ -49,6 +54,13 @@
 \input{sections/keywords}
 
 \end{frontmatter}
+
+% Ensure journal name appears in running header for final format
+\pagestyle{fancy}
+\fancyhf{} % Clear all header and footer fields
+\fancyhead[L]{\journalname\ (\journalpublisher)} % Left header contains the journal name and publisher
+\fancyhead[R]{\thepage} % Right header contains the page number
+\renewcommand{\headrulewidth}{0.4pt} % Optional: add a line under header
 
 % Enable line numbers for review
 % \linenumbers
